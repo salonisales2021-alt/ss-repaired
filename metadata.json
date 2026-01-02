@@ -1,0 +1,9 @@
+{
+  "name": "Saloni Sales Portal",
+  "description": "A comprehensive B2B marketplace for Saloni Sales featuring a customer-facing luxury shopping experience and a robust administrative backend.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone",
+    "geolocation"
+  ]
+}
