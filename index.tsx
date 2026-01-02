@@ -9,11 +9,11 @@ const cleanupServiceWorkers = async () => {
     try {
       const registrations = await navigator.serviceWorker.getRegistrations();
       for (const registration of registrations) {
-        registration.unregister().catch(err => console.warn('SW unregister failed:', err));
+        registration.unregister().catch(() => {});
       }
     } catch (error) {
       // Silently fail if SW is not accessible (e.g., sandboxed iframe)
-      console.warn('ServiceWorker access restricted, skipping cleanup.');
+      // Warning suppressed to avoid console noise in restricted environments
     }
   }
 };
