@@ -107,8 +107,8 @@ export const CustomerHome: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {[
                 { title: 'Western Wear', img: 'https://images.unsplash.com/photo-1518831959646-742c3a14ebf7?q=80&w=800&auto=format&fit=crop', link: 'Western', sub: 'Frocks & Party Wear' },
-                { title: 'Ethnic Elegance', img: 'https://images.unsplash.com/photo-1582232537592-2357731215b4?q=80&w=800&auto=format&fit=crop', link: 'Ethnic', sub: 'Lehengas & Suits' },
-                { title: 'Indo-Western', img: 'https://images.unsplash.com/photo-1621454523226-eb3013733507?q=80&w=800&auto=format&fit=crop', link: 'Indo-Western', sub: 'Fusion Collection' }
+                { title: 'Ethnic Elegance', img: 'https://tikuoenvshrrweahpvpb.supabase.co/storage/v1/object/public/saloniAssets/websiteAssets/Gemini_Generated_Image_o9sxbpo9sxbpo9sx.png', link: 'Ethnic', sub: 'Lehengas & Suits' },
+                { title: 'Indo-Western', img: 'https://tikuoenvshrrweahpvpb.supabase.co/storage/v1/object/public/saloniAssets/websiteAssets/Gemini_Generated_Image_9zvgcy9zvgcy9zvg.png', link: 'Indo-Western', sub: 'Fusion Collection' }
             ].map((cat, idx) => (
                 <div 
                     key={idx} 
