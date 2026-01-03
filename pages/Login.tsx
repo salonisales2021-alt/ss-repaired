@@ -80,6 +80,10 @@ export const Login: React.FC = () => {
     }
   };
 
+  const handleDemoLogin = async () => {
+      await handleLogin(undefined, { id: 'demo@client.com', pass: 'password123' });
+  };
+
   const handleBiometricLogin = async () => {
       setLoading(true);
       setErrorMsg(null);
@@ -302,6 +306,18 @@ export const Login: React.FC = () => {
                         {loading ? 'Verifying...' : 'Unlock Portal'}
                     </Button>
                 </form>
+
+                {/* DEMO LOGIN SHORTCUT */}
+                {!isAdminRoute && (
+                    <div className="text-center mt-6">
+                        <button 
+                            onClick={handleDemoLogin} 
+                            className="text-xs text-rani-600 font-bold hover:underline"
+                        >
+                            Or Continue as Demo User
+                        </button>
+                    </div>
+                )}
             </div>
         )}
 

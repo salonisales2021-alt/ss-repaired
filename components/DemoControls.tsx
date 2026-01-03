@@ -46,8 +46,8 @@ export const DemoControls: React.FC = () => {
     }
 
     return (
-        <div className="fixed bottom-24 left-6 z-[100] bg-gray-900 text-white p-4 rounded-xl shadow-2xl border border-gray-700 w-64 animate-fade-in-up">
-            <div className="flex justify-between items-center mb-3">
+        <div className="fixed bottom-24 left-6 z-[100] bg-gray-900 text-white p-4 rounded-xl shadow-2xl border border-gray-700 w-64 animate-fade-in-up max-h-[80vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-3 sticky top-0 bg-gray-900 z-10 pb-2 border-b border-gray-800">
                 <h3 className="font-bold text-xs uppercase tracking-widest text-rani-400">Quick Role Switch</h3>
                 <button onClick={() => setIsOpen(false)} className="text-gray-500 hover:text-white">✕</button>
             </div>
@@ -71,11 +71,25 @@ export const DemoControls: React.FC = () => {
 
                 <p className="text-[9px] text-gray-500 font-bold uppercase mb-1 mt-3">B2B Partners</p>
                 <button 
+                    onClick={() => handleQuickLogin('RETAILER', 'demo@client.com')}
+                    className="w-full text-left px-3 py-2 rounded bg-gray-800 hover:bg-gray-700 text-xs flex justify-between items-center group"
+                >
+                    <span>✨ Demo Client</span>
+                    <span className="text-[9px] bg-gray-900 px-1 rounded text-gray-500 group-hover:text-white">Start Here</span>
+                </button>
+                <button 
                     onClick={() => handleQuickLogin('RETAILER', 'retailer@saloni.com')}
                     className="w-full text-left px-3 py-2 rounded bg-gray-800 hover:bg-gray-700 text-xs flex justify-between items-center group"
                 >
                     <span>🛍️ Retailer</span>
                     <span className="text-[9px] bg-gray-900 px-1 rounded text-gray-500 group-hover:text-white">Shop Front</span>
+                </button>
+                <button 
+                    onClick={() => handleQuickLogin('TRADER', 'trader@saloni.com')}
+                    className="w-full text-left px-3 py-2 rounded bg-gray-800 hover:bg-gray-700 text-xs flex justify-between items-center group"
+                >
+                    <span>🤝 Local Trader</span>
+                    <span className="text-[9px] bg-gray-900 px-1 rounded text-gray-500 group-hover:text-white">Wholesale</span>
                 </button>
                 <button 
                     onClick={() => handleQuickLogin('DISTRIBUTOR', 'distributor@saloni.com')}

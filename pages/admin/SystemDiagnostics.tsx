@@ -132,14 +132,14 @@ export const SystemDiagnostics: React.FC = () => {
 
     const testVision = () => {
         runTest('Vision Analysis', 'gemini-2.5-flash', async (ai) => {
-            // 1x1 Transparent Pixel GIF Base64
-            const pixel = "R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
+            // 1x1 Red Pixel PNG Base64
+            const pixel = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
             const res = await ai.models.generateContent({
                 model: 'gemini-2.5-flash',
                 contents: {
                     parts: [
-                        { inlineData: { mimeType: 'image/gif', data: pixel } },
-                        { text: "What is this image?" }
+                        { inlineData: { mimeType: 'image/png', data: pixel } },
+                        { text: "What is the main color in this image? Reply with one word." }
                     ]
                 }
             });

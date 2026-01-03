@@ -9,9 +9,9 @@ import { ProductVariant, Review } from '../../types';
 const getColorValue = (colorName: string) => {
     const map: Record<string, string> = {
         'Red': '#EF4444', 'Blue': '#3B82F6', 'Green': '#10B981', 'Yellow': '#F59E0B',
-        'Black': '#111827', 'White': '#FFFFFF', 'Pink': '#EC4899', 'Rani': '#E01A8D',
+        'Black': '#111827', 'White': '#FFFFFF', 'Pink': '#EC4899', 'Rani': '#BE123C',
         'Navy': '#1E3A8A', 'Teal': '#14B8A6', 'Grey': '#6B7280', 'Orange': '#F97316',
-        'Purple': '#8B5CF6', 'Maroon': '#800000', 'Gold': '#FFD700', 'Silver': '#C0C0C0'
+        'Purple': '#8B5CF6', 'Maroon': '#800000', 'Gold': '#D97706', 'Silver': '#C0C0C0'
     };
     return map[colorName] || colorName.toLowerCase();
 };

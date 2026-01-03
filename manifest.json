@@ -1,0 +1,24 @@
+
+{
+  "short_name": "Saloni Sales",
+  "name": "Saloni Sales B2B Portal",
+  "icons": [
+    {
+      "src": "https://tikuoenvshrrweahpvpb.supabase.co/storage/v1/object/public/saloniAssets/websiteAssets/logo%282%29.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "https://tikuoenvshrrweahpvpb.supabase.co/storage/v1/object/public/saloniAssets/websiteAssets/logo%282%29.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#BE123C",
+  "background_color": "#ffffff",
+  "orientation": "portrait"
+}

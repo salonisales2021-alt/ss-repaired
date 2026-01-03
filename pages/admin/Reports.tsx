@@ -144,15 +144,15 @@ export const Reports: React.FC = () => {
                                     <AreaChart data={salesData}>
                                         <defs>
                                             <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                                                <stop offset="5%" stopColor="#10B981" stopOpacity={0.8}/>
-                                                <stop offset="95%" stopColor="#10B981" stopOpacity={0}/>
+                                                <stop offset="5%" stopColor="#D97706" stopOpacity={0.8}/>
+                                                <stop offset="95%" stopColor="#D97706" stopOpacity={0}/>
                                             </linearGradient>
                                         </defs>
                                         <CartesianGrid strokeDasharray="3 3" vertical={false} />
                                         <XAxis dataKey="date" tick={{fontSize: 12}} />
                                         <YAxis tick={{fontSize: 12}} tickFormatter={(val) => `₹${val/1000}k`} />
                                         <Tooltip formatter={(value) => [`₹${Number(value).toLocaleString()}`, 'Revenue']} />
-                                        <Area type="monotone" dataKey="amount" stroke="#10B981" fillOpacity={1} fill="url(#colorRevenue)" />
+                                        <Area type="monotone" dataKey="amount" stroke="#D97706" fillOpacity={1} fill="url(#colorRevenue)" />
                                     </AreaChart>
                                 </ResponsiveContainer>
                             </div>
@@ -172,7 +172,7 @@ export const Reports: React.FC = () => {
                                                 <XAxis type="number" hide />
                                                 <YAxis dataKey="name" type="category" width={120} tick={{fontSize: 10}} />
                                                 <Tooltip formatter={(value) => [`₹${Number(value).toLocaleString()}`, 'Value']} />
-                                                <Bar dataKey="value" fill="#E01A8D" radius={[0, 4, 4, 0]} barSize={20} />
+                                                <Bar dataKey="value" fill="#BE123C" radius={[0, 4, 4, 0]} barSize={20} />
                                             </BarChart>
                                         </ResponsiveContainer>
                                     </div>

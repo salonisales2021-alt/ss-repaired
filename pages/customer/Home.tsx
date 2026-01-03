@@ -80,7 +80,7 @@ export const CustomerHome: React.FC = () => {
                     <video src={heroVideoUrl} autoPlay loop muted playsInline className="w-full h-full object-cover object-top" />
                  ) : (
                     <img 
-                        src="https://images.unsplash.com/photo-1596870230751-ebdfce98ec42?q=80&w=2000&auto=format&fit=crop"
+                        src="https://tikuoenvshrrweahpvpb.supabase.co/storage/v1/object/public/saloniAssets/websiteAssets/Gemini_Generated_Image_32dwlh32dwlh32dw.png"
                         alt="Saloni Girls Fashion Studio Collection"
                         className="w-full h-full object-cover object-top md:object-center shadow-2xl md:shadow-none"
                     />
@@ -106,7 +106,7 @@ export const CustomerHome: React.FC = () => {
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {[
-                { title: 'Western Wear', img: 'https://images.unsplash.com/photo-1518831959646-742c3a14ebf7?q=80&w=800&auto=format&fit=crop', link: 'Western', sub: 'Frocks & Party Wear' },
+                { title: 'Western Wear', img: 'https://tikuoenvshrrweahpvpb.supabase.co/storage/v1/object/public/saloniAssets/websiteAssets/Gemini_Generated_Image_5n7ne15n7ne15n7n.png', link: 'Western', sub: 'Frocks & Party Wear' },
                 { title: 'Ethnic Elegance', img: 'https://tikuoenvshrrweahpvpb.supabase.co/storage/v1/object/public/saloniAssets/websiteAssets/Gemini_Generated_Image_o9sxbpo9sxbpo9sx.png', link: 'Ethnic', sub: 'Lehengas & Suits' },
                 { title: 'Indo-Western', img: 'https://tikuoenvshrrweahpvpb.supabase.co/storage/v1/object/public/saloniAssets/websiteAssets/Gemini_Generated_Image_9zvgcy9zvgcy9zvg.png', link: 'Indo-Western', sub: 'Fusion Collection' }
             ].map((cat, idx) => (
