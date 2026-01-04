@@ -1,5 +1,4 @@
 
-// ... (imports remain same)
 import React, { useState, Suspense } from 'react';
 import { HashRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
@@ -14,7 +13,6 @@ import { ScrollToTop } from './components/ScrollToTop';
 import { Footer } from './components/Footer';
 import { Button } from './components/Button';
 import { TutorialOverlay } from './components/TutorialOverlay';
-import { DemoControls } from './components/DemoControls';
 import { InstallPwaPrompt } from './components/InstallPwaPrompt';
 import { UserRole } from './types';
 import { LoadingSpinner } from './components/LoadingSpinner';
@@ -86,7 +84,6 @@ const GaddiDashboard = React.lazy(() => import('./pages/logistics/GaddiDashboard
 const DistributorDashboard = React.lazy(() => import('./pages/distributor/DistributorDashboard').then(m => ({ default: m.DistributorDashboard })));
 
 const CustomerLayout = () => {
-  // ... (existing layout logic)
   const { t } = useLanguage();
   return (
     <div className="flex flex-col min-h-screen">
@@ -106,7 +103,6 @@ const CustomerLayout = () => {
           <AIChatbot />
       </div>
       <LiveSalesAgent />
-      <DemoControls />
       <InstallPwaPrompt />
       
       {/* WhatsApp Floating Button */}
@@ -127,7 +123,6 @@ const CustomerLayout = () => {
   );
 };
 
-// ... (MaintenanceView and ProtectedAdminRoute components remain same)
 const MaintenanceView = () => {
     const { t } = useLanguage();
     return (
@@ -154,7 +149,7 @@ const ProtectedAdminRoute = ({ children }: { children?: React.ReactNode }) => {
   return <>{children}</>;
 };
 
-const App = () => {
+function App() {
   const [isMaintenance, setIsMaintenance] = useState(false); 
 
   if (isMaintenance) return <LanguageProvider><MaintenanceView /></LanguageProvider>;
@@ -250,6 +245,6 @@ const App = () => {
       </LanguageProvider>
     </ErrorBoundary>
   );
-};
+}
 
 export default App;

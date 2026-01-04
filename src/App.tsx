@@ -1,3 +1,4 @@
+
 import React, { useState, Suspense } from 'react';
 import { HashRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
@@ -149,7 +150,7 @@ const ProtectedAdminRoute = ({ children }: { children?: React.ReactNode }) => {
   return <>{children}</>;
 };
 
-const App = () => {
+function App() {
   const [isMaintenance, setIsMaintenance] = useState(false); 
 
   if (isMaintenance) return <LanguageProvider><MaintenanceView /></LanguageProvider>;
@@ -244,6 +245,6 @@ const App = () => {
       </LanguageProvider>
     </ErrorBoundary>
   );
-};
+}
 
 export default App;

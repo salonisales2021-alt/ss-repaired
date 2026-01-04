@@ -41,36 +41,6 @@ export const MOCK_USERS: User[] = [
     mobile: '9876543211'
   },
   {
-    id: 'u-demo-gaddi',
-    email: 'gaddi@saloni.com',
-    fullName: 'Demo Gaddi Manager',
-    businessName: 'Shri Ram & Sons (Gaddi)',
-    role: UserRole.GADDI,
-    gstin: '07AABCS1234H1Z5',
-    address: '123, Cloth Market',
-    city: 'Delhi',
-    state: 'Delhi',
-    isApproved: true,
-    creditLimit: 80000000,
-    outstandingDues: 1200000,
-    mobile: '9876543230'
-  },
-  {
-    id: 'u-demo-distributor',
-    email: 'distributor@saloni.com',
-    fullName: 'Rakesh Kumar',
-    businessName: 'Rakesh Trading Co.',
-    role: UserRole.DISTRIBUTOR,
-    gstin: '24AABCR1234H1Z5',
-    address: 'Ring Road Market',
-    city: 'Surat',
-    state: 'Gujarat',
-    isApproved: true,
-    creditLimit: 2000000,
-    outstandingDues: 450000,
-    mobile: '9876543220'
-  },
-  {
     id: 'u-anurag',
     email: 'anurag@creation.com',
     fullName: 'Anurag Owner',
@@ -113,19 +83,6 @@ export const MOCK_USERS: User[] = [
     creditLimit: 0,
     outstandingDues: 0,
     mobile: '9876543210'
-  },
-  {
-    id: 'u-demo',
-    email: 'demo@client.com',
-    fullName: 'Demo User',
-    businessName: 'Demo Boutique',
-    role: UserRole.RETAILER,
-    isApproved: true,
-    isPreBookApproved: true,
-    creditLimit: 50000,
-    outstandingDues: 0,
-    mobile: '9999999999',
-    wishlist: []
   }
 ];
 
