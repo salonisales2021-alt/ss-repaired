@@ -1,4 +1,5 @@
 
+// ... (imports remain same)
 import React, { useState, Suspense } from 'react';
 import { HashRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
@@ -39,14 +40,13 @@ const Wishlist = React.lazy(() => import('./pages/customer/Wishlist').then(m => 
 const BookVisit = React.lazy(() => import('./pages/customer/BookVisit').then(m => ({ default: m.BookVisit })));
 const Support = React.lazy(() => import('./pages/customer/Support').then(m => ({ default: m.Support })));
 
-// Exclusive / AI Features
+// AI Features
 const Collections = React.lazy(() => import('./pages/customer/Collections').then(m => ({ default: m.Collections }))); // Visual Scout
 const MarketingKit = React.lazy(() => import('./pages/customer/MarketingKit').then(m => ({ default: m.MarketingKit })));
 const DesignStudio = React.lazy(() => import('./pages/customer/DesignStudio').then(m => ({ default: m.DesignStudio })));
 const SmartStocker = React.lazy(() => import('./pages/customer/SmartStocker').then(m => ({ default: m.SmartStocker })));
 const VideoFeed = React.lazy(() => import('./pages/customer/VideoFeed').then(m => ({ default: m.VideoFeed })));
 const DistributorFinder = React.lazy(() => import('./pages/customer/DistributorFinder').then(m => ({ default: m.DistributorFinder })));
-const PreBook = React.lazy(() => import('./pages/customer/PreBook').then(m => ({ default: m.PreBook })));
 
 // Public Pages
 const About = React.lazy(() => import('./pages/public/About').then(m => ({ default: m.About })));
@@ -78,6 +78,7 @@ const CatalogMaker = React.lazy(() => import('./pages/admin/CatalogMaker').then(
 const BulkOnboarding = React.lazy(() => import('./pages/admin/BulkOnboarding').then(m => ({ default: m.BulkOnboarding })));
 const BulkClientOnboarding = React.lazy(() => import('./pages/admin/BulkClientOnboarding').then(m => ({ default: m.BulkClientOnboarding })));
 const SystemDiagnostics = React.lazy(() => import('./pages/admin/SystemDiagnostics').then(m => ({ default: m.SystemDiagnostics })));
+const DispatchShop = React.lazy(() => import('./pages/admin/DispatchShop').then(m => ({ default: m.DispatchShop }))); // New import
 
 // Specialized Dashboards
 const AgentDashboard = React.lazy(() => import('./pages/agent/AgentDashboard').then(m => ({ default: m.AgentDashboard })));
@@ -85,6 +86,7 @@ const GaddiDashboard = React.lazy(() => import('./pages/logistics/GaddiDashboard
 const DistributorDashboard = React.lazy(() => import('./pages/distributor/DistributorDashboard').then(m => ({ default: m.DistributorDashboard })));
 
 const CustomerLayout = () => {
+  // ... (existing layout logic)
   const { t } = useLanguage();
   return (
     <div className="flex flex-col min-h-screen">
@@ -125,6 +127,7 @@ const CustomerLayout = () => {
   );
 };
 
+// ... (MaintenanceView and ProtectedAdminRoute components remain same)
 const MaintenanceView = () => {
     const { t } = useLanguage();
     return (
@@ -186,7 +189,6 @@ const App = () => {
                   <Route path="about" element={<About />} />
                   <Route path="contact" element={<Contact />} />
                   <Route path="franchise-enquiry" element={<EnquireFranchise />} />
-                  <Route path="pre-book" element={<PreBook />} />
                   
                   {/* Auth */}
                   <Route path="login" element={<Login />} />
@@ -223,6 +225,7 @@ const App = () => {
                   <Route index element={<Navigate to="dashboard" replace />} />
                   <Route path="dashboard" element={<DashboardHome />} />
                   <Route path="orders" element={<OrderManager />} /> 
+                  <Route path="shop-orders" element={<DispatchShop />} />
                   <Route path="finance" element={<Finance />} />
                   <Route path="products" element={<ProductEditor />} /> 
                   <Route path="bulk-onboarding" element={<BulkOnboarding />} />

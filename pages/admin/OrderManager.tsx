@@ -1,9 +1,11 @@
+
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { db } from '../../services/db';
-import { Order, OrderDocuments } from '../../types';
+import { Order, OrderDocuments, TransportDetails } from '../../types';
 import { Button } from '../../components/Button';
 import { useNavigate } from 'react-router-dom';
+import { Input } from '../../components/Input';
 
 export const OrderManager: React.FC = () => {
     const { user, addNotification } = useApp();
@@ -21,6 +23,15 @@ export const OrderManager: React.FC = () => {
     const [ewayFile, setEwayFile] = useState<File | null>(null);
     const [lrGrFile, setLrGrFile] = useState<File | null>(null);
     const [uploading, setUploading] = useState(false);
+
+    // Transport Details State
+    const [transportData, setTransportData] = useState<TransportDetails>({
+        transporterName: 'KRISHNA FREIGHT MOVERS',
+        grNumber: '',
+        vehicleNumber: '',
+        station: '',
+        eWayBillNo: ''
+    });
 
     useEffect(() => {
         loadOrders();
@@ -70,6 +81,14 @@ export const OrderManager: React.FC = () => {
         setSelectedOrder(order);
         setModalMode('DISPATCH');
         setLrGrFile(null);
+        // Pre-fill transport data defaults
+        setTransportData({
+            transporterName: 'KRISHNA FREIGHT MOVERS',
+            grNumber: '',
+            vehicleNumber: '',
+            station: order.userCity || '',
+            eWayBillNo: ''
+        });
     };
 
     const openEditDocsModal = (order: Order) => {
@@ -124,30 +143,37 @@ export const OrderManager: React.FC = () => {
     };
 
     const handleMarkDispatched = async () => {
-        if (!selectedOrder || !lrGrFile) {
-            alert("Please upload the LR/GR Slip.");
+        if (!selectedOrder || !transportData.grNumber) {
+            alert("Please provide the Builty / GR Number.");
             return;
         }
 
         setUploading(true);
         try {
-            const lrGrSlipUrl = await db.uploadDocument(lrGrFile);
+            let lrGrSlipUrl = undefined;
+            if (lrGrFile) {
+                lrGrSlipUrl = await db.uploadDocument(lrGrFile);
+            }
 
             const updatedDocs: OrderDocuments = {
                 ...selectedOrder.documents,
                 lrGrSlipUrl
             };
 
+            // This assumes db.updateOrder handles the 'transport' field update (we need to ensure this in db.ts or handle via partial object)
+            // Assuming we added transport to Partial<Order>
             await db.updateOrder(selectedOrder.id, {
                 status: 'DISPATCHED',
-                documents: updatedDocs
-            });
+                documents: updatedDocs,
+                transport: transportData,
+                trackingNumber: transportData.grNumber
+            } as any);
 
             // TRIGGER NOTIFICATION
             addNotification({
                 recipientId: selectedOrder.userId,
                 title: "Order Dispatched",
-                message: `Great news! Order #${selectedOrder.id} has been dispatched. Track it now.`,
+                message: `Builty No: ${transportData.grNumber}. Your order is on the way via ${transportData.transporterName}.`,
                 type: "ORDER",
                 link: "/orders"
             });
@@ -157,7 +183,7 @@ export const OrderManager: React.FC = () => {
             loadOrders();
         } catch (e) {
             console.error(e);
-            alert("Error uploading document.");
+            alert("Error updating order.");
         } finally {
             setUploading(false);
         }
@@ -295,12 +321,14 @@ export const OrderManager: React.FC = () => {
                                             onClick={() => window.open(`#/admin/invoice/${order.id}`, '_blank')}
                                             className="text-[10px] text-blue-600 hover:underline mt-1 font-bold flex items-center gap-1"
                                         >
-                                            📄 View Invoice
+                                            📄 View Tax Invoice
                                         </button>
                                     </td>
                                     <td className="p-4">
                                         <div className="font-bold">{order.userBusinessName}</div>
-                                        <div className="text-xs text-gray-500">Via {order.paymentDetails.method}</div>
+                                        <div className="text-xs text-gray-500">
+                                            {order.gaddiId ? <span className="text-blue-600 font-bold">Via Gaddi: {order.gaddiName}</span> : `Direct: ${order.paymentDetails.method}`}
+                                        </div>
                                     </td>
                                     <td className="p-4 font-bold">₹{order.totalAmount.toLocaleString()}</td>
                                     <td className="p-4">
@@ -349,11 +377,11 @@ export const OrderManager: React.FC = () => {
             {/* MODALS */}
             {selectedOrder && (
                 <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6 animate-fade-in">
+                    <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6 animate-fade-in max-h-[90vh] overflow-y-auto">
                         <div className="flex justify-between items-center mb-4">
                             <h3 className="font-bold text-lg">
                                 {modalMode === 'READY' && 'Step 2: Order Ready'}
-                                {modalMode === 'DISPATCH' && 'Step 3: Dispatch'}
+                                {modalMode === 'DISPATCH' && 'Step 3: Create Builty (Dispatch)'}
                                 {modalMode === 'EDIT_DOCS' && 'Manage Documents'}
                             </h3>
                             <button onClick={() => setSelectedOrder(null)} className="text-gray-400 hover:text-gray-600">✕</button>
@@ -393,10 +421,47 @@ export const OrderManager: React.FC = () => {
 
                         {modalMode === 'DISPATCH' && (
                             <div className="space-y-4">
-                                <p className="text-sm text-gray-600">Enter dispatch details and upload LR Slip.</p>
+                                <div className="bg-orange-50 border border-orange-100 p-3 rounded text-xs text-orange-800">
+                                    <strong>Logistics Entry:</strong> This info will appear on the final Tax Invoice.
+                                </div>
                                 
+                                <Input 
+                                    label="Transporter Name" 
+                                    value={transportData.transporterName} 
+                                    onChange={e => setTransportData({...transportData, transporterName: e.target.value})} 
+                                    placeholder="e.g. Krishna Freight Movers"
+                                />
+                                
+                                <div className="grid grid-cols-2 gap-4">
+                                    <Input 
+                                        label="GR / Builty No." 
+                                        value={transportData.grNumber} 
+                                        onChange={e => setTransportData({...transportData, grNumber: e.target.value})} 
+                                        placeholder="524339"
+                                    />
+                                    <Input 
+                                        label="Vehicle No." 
+                                        value={transportData.vehicleNumber} 
+                                        onChange={e => setTransportData({...transportData, vehicleNumber: e.target.value})} 
+                                        placeholder="RJ11GD1636"
+                                    />
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-4">
+                                    <Input 
+                                        label="Station / Destination" 
+                                        value={transportData.station} 
+                                        onChange={e => setTransportData({...transportData, station: e.target.value})} 
+                                    />
+                                    <Input 
+                                        label="E-Way Bill No." 
+                                        value={transportData.eWayBillNo} 
+                                        onChange={e => setTransportData({...transportData, eWayBillNo: e.target.value})} 
+                                    />
+                                </div>
+
                                 <div>
-                                    <label className="block text-sm font-bold text-gray-700 mb-1">Upload LR/GR Slip (PDF/JPG)</label>
+                                    <label className="block text-sm font-bold text-gray-700 mb-1">Upload Builty Scan (PDF/JPG)</label>
                                     <input 
                                         type="file" 
                                         accept=".pdf,.jpg,.jpeg,.png"
@@ -406,7 +471,7 @@ export const OrderManager: React.FC = () => {
                                 </div>
 
                                 <Button fullWidth disabled={uploading} onClick={handleMarkDispatched}>
-                                    {uploading ? 'Uploading...' : 'Confirm Dispatched'}
+                                    {uploading ? 'Processing...' : 'Confirm Dispatch'}
                                 </Button>
                             </div>
                         )}

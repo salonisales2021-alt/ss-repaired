@@ -118,7 +118,7 @@ export const AgentDashboard: React.FC = () => {
                 };
             });
 
-            const prompt = ` Create an optimal daily visit plan for an agent. Clients Data: ${JSON.stringify(clientContext)}. Prioritize high outstanding dues for payment collection. Return JSON only.`;
+            const prompt = `Create an optimal daily visit plan for an agent. Clients Data: ${JSON.stringify(clientContext)}. Prioritize high outstanding dues for payment collection. Return JSON only.`;
 
             const response = await ai.models.generateContent({
                 model: 'gemini-2.5-flash',
@@ -316,7 +316,59 @@ export const AgentDashboard: React.FC = () => {
                             </div>
                         </div>
                     )}
-                    {/* Other tabs remain essentially the same logic but referencing state variables */}
+                    
+                    {activeTab === 'COMMISSIONS' && (
+                        <div className="bg-white rounded shadow-sm border border-gray-200 overflow-hidden animate-fade-in">
+                            <table className="w-full text-sm text-left">
+                                <thead className="bg-gray-50 text-gray-500 uppercase text-xs">
+                                    <tr><th className="p-4">Date</th><th className="p-4">Client</th><th className="p-4">Order Value</th><th className="p-4">Comm. (2%)</th><th className="p-4 text-right">Status</th></tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-100">
+                                    {commissions.map((c, i) => (
+                                        <tr key={i} className="hover:bg-gray-50">
+                                            <td className="p-4 text-gray-500">{new Date(c.date).toLocaleDateString()}</td>
+                                            <td className="p-4 font-bold">{c.clientName}</td>
+                                            <td className="p-4">₹{c.orderValue.toLocaleString()}</td>
+                                            <td className="p-4 font-bold text-green-600">₹{c.commission.toLocaleString()}</td>
+                                            <td className="p-4 text-right">
+                                                <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase ${c.status === 'PAID' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>{c.status}</span>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+
+                    {activeTab === 'SMART_ROUTE' && (
+                        <div className="animate-fade-in">
+                            <div className="bg-gradient-to-r from-indigo-500 to-purple-600 p-8 rounded-2xl text-white mb-8 shadow-lg">
+                                <h2 className="text-2xl font-bold mb-2">AI Route Optimizer</h2>
+                                <p className="text-indigo-100 text-sm mb-6">Generate the most efficient daily plan based on geography and outstanding dues.</p>
+                                <Button onClick={generateBeatPlan} disabled={isGeneratingPlan} className="bg-white text-indigo-600 hover:bg-indigo-50 font-bold border-none">
+                                    {isGeneratingPlan ? 'Calculating Optimal Route...' : 'Generate Today\'s Plan'}
+                                </Button>
+                            </div>
+
+                            {beatPlan.length > 0 && (
+                                <div className="space-y-4">
+                                    {beatPlan.map((stop, idx) => (
+                                        <div key={idx} className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 flex items-center gap-4 animate-fade-in-up" style={{ animationDelay: `${idx * 100}ms` }}>
+                                            <div className="w-8 h-8 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center font-bold">{idx + 1}</div>
+                                            <div className="flex-1">
+                                                <h4 className="font-bold text-gray-800">{stop.clientName}</h4>
+                                                <p className="text-xs text-gray-500">{stop.reason}</p>
+                                            </div>
+                                            <div className="text-right">
+                                                <span className={`text-[10px] font-bold px-2 py-1 rounded uppercase ${stop.priority === 'HIGH' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'}`}>{stop.priority} Priority</span>
+                                                <p className="text-[10px] text-gray-400 mt-1">{stop.location}</p>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    )}
                     </>
                 )}
             </main>

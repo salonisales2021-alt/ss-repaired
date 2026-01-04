@@ -42,6 +42,12 @@ export const Register: React.FC = () => {
 
     try {
         if (cleanInput.length === 15) {
+            // Regex Validation for GSTIN
+            const gstinRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
+            if (!gstinRegex.test(cleanInput)) {
+                throw new Error("Invalid GSTIN format. Format required: 2 digits, 5 letters, 4 digits, 1 letter, 1 alphanumeric, Z, 1 alphanumeric.");
+            }
+
             setIdentityType('GSTIN');
             const data = await verifyGST(cleanInput);
             setGstData(data);

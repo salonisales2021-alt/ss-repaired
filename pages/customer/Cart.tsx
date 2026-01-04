@@ -9,7 +9,7 @@ import { useLanguage } from '../../context/LanguageContext';
 import { useToast } from '../../components/Toaster';
 
 export const Cart: React.FC = () => {
-  const { cart, removeFromCart, addToCart, cartTotal, clearCart, user, products, users } = useApp();
+  const { cart, removeFromCart, addToCart, cartTotal, clearCart, user, selectedClient, products, users } = useApp();
   const { t } = useLanguage();
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -17,55 +17,76 @@ export const Cart: React.FC = () => {
   const [paymentMethod, setPaymentMethod] = useState<PaymentCategory>(PaymentCategory.RAZORPAY);
   const [isProcessing, setIsProcessing] = useState(false);
   const [orderSuccess, setOrderSuccess] = useState(false);
-  const [distributorData, setDistributorData] = useState<User | null>(null);
+  
+  // Use selectedClient if acting as proxy, otherwise use logged-in user
+  const effectiveUser = selectedClient || user;
 
-  // Simplified Distributor Detection (Reverted Security Fetch)
+  // Entity Resolution
+  const [distributorData, setDistributorData] = useState<User | null>(null);
+  const [gaddiData, setGaddiData] = useState<User | null>(null);
+  const [agentData, setAgentData] = useState<User | null>(null);
+
   useEffect(() => {
-      if (user?.assignedDistributorId) {
-          const dist = users.find(u => u.id === user.assignedDistributorId);
-          setDistributorData(dist || null);
+      if (effectiveUser && users.length > 0) {
+          if (effectiveUser.assignedDistributorId) {
+              setDistributorData(users.find(u => u.id === effectiveUser.assignedDistributorId) || null);
+          }
+          if (effectiveUser.gaddiId) {
+              setGaddiData(users.find(u => u.id === effectiveUser.gaddiId) || null);
+          }
+          if (effectiveUser.assignedAgentId) {
+              setAgentData(users.find(u => u.id === effectiveUser.assignedAgentId) || null);
+          }
       }
-  }, [user, users]);
+  }, [effectiveUser, users]);
 
   // Pricing Logic
   const subtotal = cartTotal;
-  
-  // Calculate internal markup (still applied functionally as per business rules but label removed)
-  const isGuaranteedMode = paymentMethod === PaymentCategory.DISTRIBUTOR_CREDIT;
-  const guaranteeMarkup = isGuaranteedMode ? Math.round(subtotal * 0.18) : 0;
-  
-  const finalSubtotal = subtotal + guaranteeMarkup;
-  const gstAmount = Math.round(finalSubtotal * 0.05);
-  const finalAmount = finalSubtotal + gstAmount;
-
-  useEffect(() => {
-      if (distributorData) setPaymentMethod(PaymentCategory.DISTRIBUTOR_CREDIT);
-  }, [distributorData]);
+  const gstAmount = Math.round(subtotal * 0.05);
+  const finalAmount = subtotal + gstAmount;
 
   const handleCheckout = async () => {
-    if (!user) { navigate('/login'); return; }
+    if (!effectiveUser) { navigate('/login'); return; }
     setIsProcessing(true);
 
-    const settlementDays = 90;
-    const deadline = new Date();
-    deadline.setDate(deadline.getDate() + settlementDays);
+    // Determine the entity ID and Name based on selection
+    let entityId: string | undefined = undefined;
+    let entityName: string | undefined = undefined;
+    let gaddiId: string | undefined = undefined;
+    let gaddiName: string | undefined = undefined;
+
+    if (paymentMethod === PaymentCategory.GADDI && gaddiData) {
+        entityId = gaddiData.id;
+        entityName = gaddiData.businessName;
+        gaddiId = gaddiData.id;
+        gaddiName = gaddiData.businessName;
+    } else if (paymentMethod === PaymentCategory.AGENT && agentData) {
+        entityId = agentData.id;
+        entityName = agentData.fullName;
+    } else if (paymentMethod === PaymentCategory.DISTRIBUTOR_CREDIT && distributorData) {
+        entityId = distributorData.id;
+        entityName = distributorData.businessName;
+    }
 
     const orderData = {
-        userId: user.id,
-        userBusinessName: user.businessName || user.fullName,
+        userId: effectiveUser.id,
+        userBusinessName: effectiveUser.businessName || effectiveUser.fullName,
+        userCity: effectiveUser.city || 'Unknown',
+        userState: effectiveUser.state || 'Unknown',
         totalAmount: finalAmount, 
-        factoryAmount: finalAmount - guaranteeMarkup, 
-        guarantorId: isGuaranteedMode ? distributorData?.id : undefined,
-        guarantorFee: isGuaranteedMode ? guaranteeMarkup : 0,
+        factoryAmount: finalAmount, // Add logic here if factory receives less due to commissions
+        guarantorId: gaddiId || (paymentMethod === PaymentCategory.DISTRIBUTOR_CREDIT ? entityId : undefined),
         items: cart,
         status: 'PENDING' as const,
         createdAt: new Date().toISOString(),
-        settlementDeadline: isGuaranteedMode ? deadline.toISOString() : undefined,
         paymentDetails: { 
             method: paymentMethod, 
-            entityId: distributorData?.id, 
-            entityName: distributorData?.businessName 
-        }
+            entityId: entityId, 
+            entityName: entityName 
+        },
+        gaddiId: gaddiId,
+        gaddiName: gaddiName,
+        gaddiAmount: gaddiId ? finalAmount : undefined
     };
 
     const success = await db.createOrder(orderData);
@@ -73,7 +94,7 @@ export const Cart: React.FC = () => {
     if (success) { 
         setOrderSuccess(true); 
         clearCart(); 
-        toast(isGuaranteedMode ? "Order awaiting Distributor Approval." : "Order placed successfully.", "success");
+        toast("Order placed successfully.", "success");
     }
   };
 
@@ -82,11 +103,15 @@ export const Cart: React.FC = () => {
           <div className="w-24 h-24 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-8 text-4xl shadow-inner ring-4 ring-green-100">🤝</div>
           <h1 className="text-4xl font-black text-gray-900 mb-4 uppercase tracking-tighter">Order Reserved</h1>
           <p className="text-gray-500 mb-10 max-w-md mx-auto leading-relaxed">
-              {isGuaranteedMode 
-                ? `Your order has been sent to ${distributorData?.businessName} for distribution credit approval. 90-day period will start after dispatch.`
-                : "Your factory-direct order has been recorded and is processing."}
+              Order recorded for <strong>{effectiveUser?.businessName}</strong>. 
+              {paymentMethod === PaymentCategory.RAZORPAY && " Payment verified."}
+              {paymentMethod === PaymentCategory.GADDI && " Awaiting Gaddi P.O. Confirmation."}
+              {paymentMethod === PaymentCategory.AGENT && " Sales Agent has been notified."}
+              {paymentMethod === PaymentCategory.DISTRIBUTOR_CREDIT && " Awaiting Distributor Approval."}
           </p>
-          <Button size="lg" onClick={() => navigate('/orders')} className="px-12 h-14 font-black uppercase tracking-widest">Track Status</Button>
+          <Button size="lg" onClick={() => navigate(selectedClient ? '/admin/orders' : '/orders')} className="px-12 h-14 font-black uppercase tracking-widest">
+              {selectedClient ? 'Back to Admin Orders' : 'Track Status'}
+          </Button>
       </div>
   );
 
@@ -128,18 +153,22 @@ export const Cart: React.FC = () => {
             <div className="bg-white p-8 rounded-3xl shadow-2xl sticky top-24 border border-gray-100 overflow-hidden relative">
                 <div className="absolute top-0 right-0 w-32 h-32 bg-rani-500/5 rounded-full -mr-16 -mt-16"></div>
                 
-                {distributorData && (
-                    <div className="mb-8 p-6 bg-gradient-to-br from-blue-50 to-white rounded-2xl border border-blue-100 shadow-sm">
-                        <div className="flex items-center gap-3 text-blue-800 font-black uppercase text-xs tracking-widest mb-2">
-                            <span className="text-xl">🛡️</span> Authorized Distributor
-                        </div>
-                        <p className="font-bold text-gray-900 text-lg">{distributorData.businessName}</p>
-                        <div className="mt-4 space-y-2">
-                            <div className="flex justify-between text-[10px] font-black uppercase text-gray-400">
-                                <span>Credit Terms</span>
-                                <span className="text-blue-600">60-90 Days</span>
-                            </div>
-                        </div>
+                {/* Proxy Mode Warning */}
+                {selectedClient && (
+                    <div className="mb-6 p-4 bg-orange-50 rounded-xl border border-orange-200">
+                        <p className="text-[10px] font-black uppercase text-orange-600 mb-1 tracking-widest">⚠️ On Behalf Of</p>
+                        <div className="text-sm font-bold text-gray-800">{selectedClient.businessName}</div>
+                        <div className="text-xs text-gray-500">ID: {selectedClient.id}</div>
+                    </div>
+                )}
+
+                {/* Linked Partner Info */}
+                {(gaddiData || agentData || distributorData) && (
+                    <div className="mb-8 p-4 bg-gray-50 rounded-xl border border-gray-200">
+                        <p className="text-[10px] font-black uppercase text-gray-400 mb-2">Linked Partners</p>
+                        {gaddiData && <div className="text-xs font-bold text-gray-800">🏛️ {gaddiData.businessName} (Gaddi)</div>}
+                        {agentData && <div className="text-xs font-bold text-gray-800">💼 {agentData.fullName} (Agent)</div>}
+                        {distributorData && <div className="text-xs font-bold text-gray-800">🏢 {distributorData.businessName} (Distributor)</div>}
                     </div>
                 )}
 
@@ -148,12 +177,6 @@ export const Cart: React.FC = () => {
                         <span>Lot Subtotal</span>
                         <span className="text-gray-900">₹{subtotal.toLocaleString()}</span>
                     </div>
-                    {isGuaranteedMode && (
-                        <div className="flex justify-between text-xs font-black uppercase text-blue-600 tracking-widest">
-                            <span>Service Surcharge</span>
-                            <span>+₹{guaranteeMarkup.toLocaleString()}</span>
-                        </div>
-                    )}
                     <div className="flex justify-between text-xs font-black uppercase text-gray-400 tracking-widest">
                         <span>GST (5%)</span>
                         <span className="text-gray-900">₹{gstAmount.toLocaleString()}</span>
@@ -169,19 +192,39 @@ export const Cart: React.FC = () => {
 
                 <div className="space-y-4">
                     <div className="flex flex-col gap-2 mb-6">
-                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Payment & Ledger Protocol</label>
-                        <select 
-                            className="w-full h-14 px-4 bg-gray-50 border border-gray-200 rounded-xl font-black text-sm uppercase tracking-tight focus:ring-2 focus:ring-rani-500/20 outline-none"
-                            value={paymentMethod}
-                            onChange={(e) => setPaymentMethod(e.target.value as PaymentCategory)}
-                        >
-                            <option value={PaymentCategory.RAZORPAY}>Direct Factory Pay (Discounted)</option>
-                            {distributorData && <option value={PaymentCategory.DISTRIBUTOR_CREDIT}>Bill to {distributorData.businessName}</option>}
-                        </select>
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Select Payment Protocol</label>
+                        <div className="relative">
+                            <select 
+                                className="w-full h-14 px-4 bg-white border-2 border-gray-200 rounded-xl font-black text-sm uppercase tracking-tight focus:ring-2 focus:ring-rani-500/20 focus:border-rani-500 outline-none appearance-none"
+                                value={paymentMethod}
+                                onChange={(e) => setPaymentMethod(e.target.value as PaymentCategory)}
+                            >
+                                <option value={PaymentCategory.RAZORPAY}>1) Razorpay (Pay Now)</option>
+                                
+                                {gaddiData ? (
+                                    <option value={PaymentCategory.GADDI}>2) Pay via Gaddi ({gaddiData.businessName})</option>
+                                ) : (
+                                    <option disabled>2) Gaddi (Not Linked)</option>
+                                )}
+
+                                {agentData ? (
+                                    <option value={PaymentCategory.AGENT}>3) Pay via Agent ({agentData.fullName})</option>
+                                ) : (
+                                    <option disabled>3) Agent (Not Assigned)</option>
+                                )}
+
+                                {distributorData ? (
+                                    <option value={PaymentCategory.DISTRIBUTOR_CREDIT}>4) Pay via Distributor ({distributorData.businessName})</option>
+                                ) : (
+                                    <option disabled>4) Distributor (Not Linked)</option>
+                                )}
+                            </select>
+                            <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">▼</div>
+                        </div>
                     </div>
 
                     <Button fullWidth size="lg" onClick={handleCheckout} disabled={isProcessing} className="h-16 text-lg font-black uppercase tracking-[0.1em] shadow-xl shadow-rani-500/20">
-                        {isProcessing ? 'Synchronizing Trade...' : isGuaranteedMode ? 'Send for Approval' : 'Place Order'}
+                        {isProcessing ? 'Processing Order...' : selectedClient ? `Place Order for ${selectedClient.businessName}` : 'Confirm Order'}
                     </Button>
                     
                     <p className="text-center text-[9px] text-gray-400 font-bold uppercase tracking-widest mt-4">

@@ -24,11 +24,11 @@ export enum VisitType {
 }
 
 export enum PaymentCategory {
-  RAZORPAY = 'Pay Now (Razorpay)',
-  GADDI = 'Bill through Gaddi Firm', 
-  AGENT = 'Pay using Agent',
-  DISTRIBUTOR_CREDIT = 'Distributor Credit (90 Days)', 
-  LEDGER = 'Private Ledger Account'
+  RAZORPAY = 'RAZORPAY',         // Pay Now
+  GADDI = 'GADDI',               // Pay using Buying House
+  AGENT = 'AGENT',               // Pay using Agent
+  DISTRIBUTOR_CREDIT = 'DISTRIBUTOR', // Pay using Distributor
+  LEDGER = 'LEDGER'              // Legacy/Internal
 }
 
 export interface User {
@@ -50,11 +50,9 @@ export interface User {
   assignedDistributorId?: string; // Link to the Distributor node
   tier?: 'STANDARD' | 'SILVER' | 'GOLD' | 'PLATINUM';
   adminNotes?: string;
-  password?: string; // Added for secure local admin setup
-  securityEnabled?: {
-    biometric: boolean;
-    whatsappOtp: boolean;
-  };
+  address?: string;
+  city?: string;
+  state?: string;
 }
 
 export interface ProductVariant {
@@ -79,6 +77,7 @@ export interface Product {
   basePrice: number;
   isAvailable: boolean;
   collection?: string;
+  hsnCode?: string; // Added HSN for Invoice
 }
 
 export interface CartItem {
@@ -90,6 +89,7 @@ export interface CartItem {
   piecesPerSet: number;
   quantitySets: number;
   image: string;
+  hsnCode?: string;
 }
 
 export interface OrderDocuments {
@@ -99,14 +99,24 @@ export interface OrderDocuments {
   lrGrSlipUrl?: string;
 }
 
+export interface TransportDetails {
+  transporterName: string;
+  grNumber: string; // Builty Number
+  vehicleNumber?: string;
+  station?: string;
+  eWayBillNo?: string;
+}
+
 export interface Order {
   id: string;
   userId: string;
   userBusinessName: string;
+  userCity?: string;
+  userState?: string;
   items: CartItem[];
   totalAmount: number; 
   factoryAmount: number; 
-  guarantorId?: string; // Internal ID of the Distributor
+  guarantorId?: string; // Internal ID of the Distributor/Gaddi
   guarantorFee?: number; 
   status: 'PENDING' | 'ACCEPTED' | 'GUARANTEED' | 'READY' | 'DISPATCHED' | 'DELIVERED' | 'CANCELLED';
   createdAt: string;
@@ -117,12 +127,16 @@ export interface Order {
     entityName?: string;
   };
   documents?: OrderDocuments;
+  transport?: TransportDetails;
   trackingNumber?: string;
   gaddiId?: string;
   gaddiName?: string;
   gaddiAmount?: number;
+  poNumber?: string; // Gaddi Purchase Order Number
+  poImageUrl?: string; // URL of the uploaded P.O. image
 }
 
+// ... rest of existing types
 export type TicketStatus = 'OPEN' | 'IN_PROGRESS' | 'RESOLVED' | 'CLOSED';
 export type TicketPriority = 'LOW' | 'MEDIUM' | 'HIGH';
 export type TicketCategory = 'ORDER_ISSUE' | 'PAYMENT' | 'PRODUCT_QUERY' | 'OTHER' | 'SECURITY_BREACH';

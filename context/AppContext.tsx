@@ -153,7 +153,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     // Security: Ensure password field is stripped before state/storage
     const safeUser = { ...authUser };
-    delete safeUser.password;
+    // TypeScript fix: Cast to any to delete property that shouldn't exist but might at runtime
+    delete (safeUser as any).password;
 
     if (roleType === 'ADMIN') {
         if (safeUser.role === UserRole.ADMIN || safeUser.role === UserRole.SUPER_ADMIN || safeUser.role === UserRole.DISPATCH) {
@@ -201,7 +202,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
               if (!targetUser.isApproved) return { success: false, error: "Account pending approval." };
               
               const safeUser = { ...targetUser };
-              delete safeUser.password;
+              // TypeScript fix: Cast to any to delete property that shouldn't exist but might at runtime
+              delete (safeUser as any).password;
               
               setUser(safeUser);
               localStorage.setItem('saloni_active_user', JSON.stringify(safeUser));

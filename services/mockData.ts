@@ -26,37 +26,67 @@ export const MOCK_USERS: User[] = [
     mobile: '9911076259'
   },
   {
-    id: 'u-agent',
-    email: 'agent@saloni.com',
-    fullName: 'Amit Verma',
-    businessName: 'Verma Sales Agency',
-    role: UserRole.AGENT,
-    isApproved: true,
-    creditLimit: 0,
-    outstandingDues: 0,
-    mobile: '9876543210'
-  },
-  {
-    id: 'u-gaddi',
-    email: 'gaddi@saloni.com',
-    fullName: 'J M Jain',
+    id: 'u-jmjain',
+    email: 'accounts@jmjain.com',
+    fullName: 'J M Jain Accounts',
     businessName: 'J M Jain LLP',
     role: UserRole.GADDI,
+    gstin: '07AAQFJ2019Q1ZT',
+    address: '2285/9, Gali Hinga Beg, Tilak Bazar',
+    city: 'Delhi',
+    state: 'Delhi',
     isApproved: true,
-    creditLimit: 5000000,
-    outstandingDues: 150000,
+    creditLimit: 50000000,
+    outstandingDues: 2500000,
     mobile: '9876543211'
   },
   {
-    id: 'u-distributor',
-    email: 'distributor@saloni.com',
-    fullName: 'Rajesh Gupta',
-    businessName: 'Gupta Traders',
-    role: UserRole.DISTRIBUTOR,
+    id: 'u-demo-gaddi',
+    email: 'gaddi@saloni.com',
+    fullName: 'Demo Gaddi Manager',
+    businessName: 'Shri Ram & Sons (Gaddi)',
+    role: UserRole.GADDI,
+    gstin: '07AABCS1234H1Z5',
+    address: '123, Cloth Market',
+    city: 'Delhi',
+    state: 'Delhi',
     isApproved: true,
-    creditLimit: 1000000,
-    outstandingDues: 45000,
-    mobile: '9876543212'
+    creditLimit: 80000000,
+    outstandingDues: 1200000,
+    mobile: '9876543230'
+  },
+  {
+    id: 'u-demo-distributor',
+    email: 'distributor@saloni.com',
+    fullName: 'Rakesh Kumar',
+    businessName: 'Rakesh Trading Co.',
+    role: UserRole.DISTRIBUTOR,
+    gstin: '24AABCR1234H1Z5',
+    address: 'Ring Road Market',
+    city: 'Surat',
+    state: 'Gujarat',
+    isApproved: true,
+    creditLimit: 2000000,
+    outstandingDues: 450000,
+    mobile: '9876543220'
+  },
+  {
+    id: 'u-anurag',
+    email: 'anurag@creation.com',
+    fullName: 'Anurag Owner',
+    businessName: 'Anurag Creation',
+    role: UserRole.RETAILER,
+    gstin: '27AEZPD0514P1Z1',
+    address: 'Block No-5 to 10, City Land Complex',
+    city: 'Boregaon',
+    state: 'Maharashtra',
+    isApproved: true,
+    isPreBookApproved: true,
+    creditLimit: 500000,
+    outstandingDues: 78750,
+    mobile: '9876543222',
+    gaddiId: 'u-jmjain', // Linked to J M Jain
+    assignedAgentId: 'u-agent'
   },
   {
     id: 'u-retailer',
@@ -70,19 +100,19 @@ export const MOCK_USERS: User[] = [
     outstandingDues: 12500,
     mobile: '9876543213',
     assignedAgentId: 'u-agent',
-    gaddiId: 'u-gaddi',
+    gaddiId: 'u-jmjain',
     wishlist: ['pb-001']
   },
   {
-    id: 'u-trader',
-    email: 'trader@saloni.com',
-    fullName: 'Vikram Singh',
-    businessName: 'Vikram Wholesale',
-    role: UserRole.LOCAL_TRADER,
+    id: 'u-agent',
+    email: 'agent@saloni.com',
+    fullName: 'Amit Verma',
+    businessName: 'Verma Sales Agency',
+    role: UserRole.AGENT,
     isApproved: true,
-    creditLimit: 200000,
-    outstandingDues: 8000,
-    mobile: '9876543214'
+    creditLimit: 0,
+    outstandingDues: 0,
+    mobile: '9876543210'
   },
   {
     id: 'u-demo',
@@ -100,7 +130,21 @@ export const MOCK_USERS: User[] = [
 ];
 
 export const MOCK_PRODUCTS: Product[] = [
-  // ... existing mock data logic would persist in a real app, adding new PRE_BOOK items
+  {
+    id: 'p-42',
+    sku: '1280:24/34',
+    name: 'Girls Dresses (Western)',
+    description: 'Premium cotton blend western dress. HSN: 620429',
+    category: ProductCategory.WESTERN,
+    fabric: 'Cotton Blend',
+    images: ['https://images.unsplash.com/photo-1621452773781-0f992ee61919?q=80&w=800&auto=format&fit=crop'],
+    variants: [
+        { id: 'v-42a', sizeRange: '24-34', color: 'Assorted', stock: 500, pricePerPiece: 300, piecesPerSet: 12 }
+    ],
+    basePrice: 300,
+    isAvailable: true,
+    hsnCode: '620429'
+  },
   {
     id: 'pb-001',
     sku: 'PRE-LUX-001',
@@ -115,24 +159,9 @@ export const MOCK_PRODUCTS: Product[] = [
     ],
     basePrice: 2500,
     isAvailable: true,
-    collection: 'Winter 2025 Preview'
+    collection: 'Winter 2025 Preview',
+    hsnCode: '620429'
   },
-  {
-    id: 'pb-002',
-    sku: 'PRE-ETH-002',
-    name: 'Bridal Series Lehenga Set',
-    description: 'Pre-book only. Heavy can-can attached. Dispatch in 60 days.',
-    category: ProductCategory.PRE_BOOK,
-    fabric: 'Raw Silk',
-    images: ['https://images.unsplash.com/photo-1610030469983-98e550d6193c?q=80&w=800&auto=format&fit=crop'],
-    variants: [
-      { id: 'v-pb-3', sizeRange: '22-32', color: 'Gold Dust', stock: 50, pricePerPiece: 3200, piecesPerSet: 4 }
-    ],
-    basePrice: 3200,
-    isAvailable: true,
-    collection: 'Wedding 2025'
-  },
-  // Adding standard products for shop demo
   {
     id: 'p-001',
     sku: 'WD-001',
@@ -145,7 +174,8 @@ export const MOCK_PRODUCTS: Product[] = [
         { id: 'v-1', sizeRange: '2-8Y', color: 'Pink', stock: 120, pricePerPiece: 450, piecesPerSet: 6 }
     ],
     basePrice: 450,
-    isAvailable: true
+    isAvailable: true,
+    hsnCode: '620429'
   },
   {
     id: 'p-002',
@@ -159,11 +189,54 @@ export const MOCK_PRODUCTS: Product[] = [
         { id: 'v-2', sizeRange: '24-34', color: 'Red', stock: 80, pricePerPiece: 850, piecesPerSet: 6 }
     ],
     basePrice: 850,
-    isAvailable: true
+    isAvailable: true,
+    hsnCode: '620419'
   }
 ];
 
-export const MOCK_ORDERS: Order[] = [];
+export const MOCK_ORDERS: Order[] = [
+    // Pre-create the order from the image for demo purposes
+    {
+        id: '42',
+        userId: 'u-anurag',
+        userBusinessName: 'Anurag Creation',
+        userCity: 'Boregaon',
+        userState: 'Maharashtra',
+        items: [
+            {
+                productId: 'p-42',
+                variantId: 'v-42a',
+                productName: 'GIRLS DRESSES',
+                variantDescription: '1280:24/34:DRESS/12',
+                pricePerPiece: 300,
+                piecesPerSet: 12,
+                quantitySets: 1, // 12 Pcs
+                image: 'https://images.unsplash.com/photo-1621452773781-0f992ee61919?q=80&w=800&auto=format&fit=crop',
+                hsnCode: '620429'
+            }
+        ],
+        totalAmount: 78750, // Simplified total from image
+        factoryAmount: 76387, // Amount after gaddi commission
+        guarantorId: 'u-jmjain',
+        gaddiId: 'u-jmjain',
+        gaddiName: 'J M Jain LLP',
+        status: 'DISPATCHED',
+        createdAt: '2025-07-26T10:00:00Z',
+        paymentDetails: {
+            method: PaymentCategory.GADDI,
+            entityId: 'u-jmjain',
+            entityName: 'J M Jain LLP'
+        },
+        transport: {
+            transporterName: 'KRISHNA FREIGHT MOVERS',
+            grNumber: '524339',
+            station: 'BOREGAON',
+            eWayBillNo: '751547999907',
+            vehicleNumber: 'RJ11GD1636'
+        }
+    }
+];
+
 export const MOCK_TRANSACTIONS: any[] = [];
 export const MOCK_VISIT_LOGS: any[] = [];
 export const MOCK_STOCK_LOGS: any[] = [];

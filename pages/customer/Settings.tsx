@@ -36,6 +36,16 @@ export const Settings: React.FC = () => {
 
     const handleSaveProfile = async (e: React.FormEvent) => {
         e.preventDefault();
+        
+        // GSTIN Validation
+        if (formData.gstin) {
+             const gstinRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
+             if (!gstinRegex.test(formData.gstin)) {
+                 alert("Invalid GSTIN format. Standard format required (e.g., 07AAAAA0000A1Z5).");
+                 return;
+             }
+        }
+
         setIsSaving(true);
         try {
             const success = await db.updateUser({
@@ -169,6 +179,7 @@ export const Settings: React.FC = () => {
                                         value={formData.gstin}
                                         onChange={e => setFormData({...formData, gstin: e.target.value})}
                                         className="font-mono"
+                                        maxLength={15}
                                     />
                                     <Input 
                                         label="Contact Person Name" 

@@ -49,8 +49,10 @@ const mapProviderResponseToAppInterface = (data: any): GSTDetails => {
 
 export const verifyGST = async (gstin: string): Promise<GSTDetails> => {
   // Input Validation
-  if (!gstin || gstin.length !== 15) {
-     throw new Error("Invalid GSTIN Format. Please enter a valid 15-digit GSTIN.");
+  const gstinRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
+  
+  if (!gstin || !gstinRegex.test(gstin)) {
+     throw new Error("Invalid GSTIN Format. Please ensure it follows the standard 15-character pattern (e.g., 07AAAAA0000A1Z5).");
   }
 
   const apiKey = getApiKey();
