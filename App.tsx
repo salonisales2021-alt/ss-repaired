@@ -1,4 +1,3 @@
-
 import React, { useState, Suspense } from 'react';
 import { HashRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
@@ -37,6 +36,7 @@ const Settings = React.lazy(() => import('./pages/customer/Settings').then(m => 
 const Wishlist = React.lazy(() => import('./pages/customer/Wishlist').then(m => ({ default: m.Wishlist })));
 const BookVisit = React.lazy(() => import('./pages/customer/BookVisit').then(m => ({ default: m.BookVisit })));
 const Support = React.lazy(() => import('./pages/customer/Support').then(m => ({ default: m.Support })));
+const PreBook = React.lazy(() => import('./pages/customer/PreBook').then(m => ({ default: m.PreBook })));
 
 // AI Features
 const Collections = React.lazy(() => import('./pages/customer/Collections').then(m => ({ default: m.Collections }))); // Visual Scout
@@ -55,11 +55,14 @@ const NotFound = React.lazy(() => import('./pages/public/NotFound').then(m => ({
 // Auth
 const Login = React.lazy(() => import('./pages/Login').then(m => ({ default: m.Login })));
 const Register = React.lazy(() => import('./pages/Register').then(m => ({ default: m.Register })));
+const UpdatePassword = React.lazy(() => import('./pages/UpdatePassword').then(m => ({ default: m.UpdatePassword })));
 
-// Admin
-const AdminLayout = React.lazy(() => import('./pages/admin/AdminDashboard').then(m => ({ default: m.AdminLayout })));
-const DashboardHome = React.lazy(() => import('./pages/admin/AdminDashboard').then(m => ({ default: m.DashboardHome })));
-const AdminSettings = React.lazy(() => import('./pages/admin/AdminDashboard').then(m => ({ default: m.AdminSettings })));
+// Admin - Refactored Structure
+const AdminLayout = React.lazy(() => import('./pages/admin/AdminLayout').then(m => ({ default: m.AdminLayout })));
+const DashboardHome = React.lazy(() => import('./pages/admin/DashboardHome').then(m => ({ default: m.DashboardHome })));
+const AdminSettings = React.lazy(() => import('./pages/admin/AdminSettings').then(m => ({ default: m.AdminSettings })));
+
+// Admin Sub-Pages
 const OrderManager = React.lazy(() => import('./pages/admin/OrderManager').then(m => ({ default: m.OrderManager })));
 const Finance = React.lazy(() => import('./pages/admin/Finance').then(m => ({ default: m.Finance })));
 const ProductEditor = React.lazy(() => import('./pages/admin/ProductEditor').then(m => ({ default: m.ProductEditor })));
@@ -166,6 +169,7 @@ function App() {
                 <Route path="/" element={<CustomerLayout />}>
                   <Route index element={<CustomerHome />} />
                   <Route path="shop" element={<Shop />} />
+                  <Route path="pre-book" element={<PreBook />} />
                   <Route path="quick-order" element={<QuickOrder />} />
                   <Route path="product/:id" element={<ProductDetail />} />
                   <Route path="cart" element={<Cart />} />
@@ -188,6 +192,7 @@ function App() {
                   {/* Auth */}
                   <Route path="login" element={<Login />} />
                   <Route path="register" element={<Register />} />
+                  <Route path="update-password" element={<UpdatePassword />} />
                   
                   {/* Partner Specific Dashboards */}
                   <Route path="agent/dashboard" element={<AgentDashboard />} />

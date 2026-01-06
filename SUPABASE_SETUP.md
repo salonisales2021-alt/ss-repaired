@@ -1,4 +1,3 @@
-
 # Supabase Setup Guide for Saloni Sales
 
 To make the app fully functional with persistent data and resolve security audits, follow these steps in your [Supabase Dashboard](https://supabase.com/dashboard).
@@ -7,15 +6,18 @@ To make the app fully functional with persistent data and resolve security audit
 1.  Go to the **SQL Editor** in your Supabase Dashboard.
 2.  Click **New Query**.
 3.  Copy the entire content of the file **`SUPABASE_SCHEMA.sql`** located in your project root.
-    *   *Note: This file contains the fix for the `text = uuid` error.*
+    *   *Note: This file contains the fix for `text = uuid` errors, performance indexes, and optimized RLS policies.*
 4.  Paste it into the SQL Editor and click **Run**.
 
-## 2. Critical Security Configuration (Resolve Leaked Password Warning)
-Supabase detects if you have not enabled compromised password checks. To resolve the "Leaked Password Protection Disabled" warning:
-1.  Go to **Authentication** > **Settings**.
-2.  Find the **Security Audit** or **Security** section.
-3.  Toggle **ON** the switch for **"Prevent use of compromised passwords"**.
-4.  This will check new passwords against the `HaveIBeenPwned` database.
+## 2. Critical Security Configuration (Final Step)
+Supabase detects if you have not enabled compromised password checks. To resolve the **"Leaked Password Protection Disabled"** warning:
+1.  Go to **Authentication** (icon on left sidebar).
+2.  Click on **Configuration** (or **Settings**).
+3.  Click on the **Security** hook/tab.
+4.  Scroll to **Password protection**.
+5.  Toggle **ON** the switch for **"Prevent use of compromised passwords"**.
+    *   *This checks against the HaveIBeenPwned.org database to ensure users don't use leaked passwords.*
+6.  Click **Save**.
 
 ## 3. Storage Setup
 1.  Go to **Storage** in the Supabase Dashboard.
