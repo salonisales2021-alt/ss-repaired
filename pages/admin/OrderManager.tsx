@@ -22,6 +22,7 @@ export const OrderManager: React.FC = () => {
     const [invoiceFile, setInvoiceFile] = useState<File | null>(null);
     const [ewayFile, setEwayFile] = useState<File | null>(null);
     const [lrGrFile, setLrGrFile] = useState<File | null>(null);
+    const [poFile, setPoFile] = useState<File | null>(null);
     const [uploading, setUploading] = useState(false);
 
     // Transport Details State
@@ -97,6 +98,7 @@ export const OrderManager: React.FC = () => {
         setInvoiceFile(null);
         setEwayFile(null);
         setLrGrFile(null);
+        setPoFile(null);
     };
 
     const handleMarkReady = async () => {
@@ -196,16 +198,19 @@ export const OrderManager: React.FC = () => {
             let invoiceUrl = selectedOrder.documents?.invoiceUrl;
             let ewayBillUrl = selectedOrder.documents?.ewayBillUrl;
             let lrGrSlipUrl = selectedOrder.documents?.lrGrSlipUrl;
+            let purchaseOrderUrl = selectedOrder.documents?.purchaseOrderUrl;
 
             // Only upload if a new file is selected
             if (invoiceFile) invoiceUrl = await db.uploadDocument(invoiceFile);
             if (ewayFile) ewayBillUrl = await db.uploadDocument(ewayFile);
             if (lrGrFile) lrGrSlipUrl = await db.uploadDocument(lrGrFile);
+            if (poFile) purchaseOrderUrl = await db.uploadDocument(poFile);
 
             const updatedDocs: OrderDocuments = {
                 invoiceUrl,
                 ewayBillUrl,
-                lrGrSlipUrl
+                lrGrSlipUrl,
+                purchaseOrderUrl
             };
 
             // Update documents without changing status
@@ -507,6 +512,14 @@ export const OrderManager: React.FC = () => {
                                                 <a href={selectedOrder.documents.lrGrSlipUrl} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">View</a>
                                             )}
                                         </li>
+                                        <li className="flex items-center gap-2">
+                                            <span className={selectedOrder.documents?.purchaseOrderUrl ? "text-green-600 font-bold" : "text-gray-400"}>
+                                                Purchase Order: {selectedOrder.documents?.purchaseOrderUrl ? "Available" : "Missing"}
+                                            </span>
+                                            {selectedOrder.documents?.purchaseOrderUrl && (
+                                                <a href={selectedOrder.documents.purchaseOrderUrl} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">View</a>
+                                            )}
+                                        </li>
                                     </ul>
                                 </div>
 
@@ -534,6 +547,15 @@ export const OrderManager: React.FC = () => {
                                         type="file" 
                                         accept=".pdf,.jpg,.jpeg,.png"
                                         onChange={(e) => setLrGrFile(e.target.files?.[0] || null)}
+                                        className="w-full text-sm border border-gray-300 rounded p-2"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700 mb-1">Upload Purchase Order (Scan)</label>
+                                    <input 
+                                        type="file" 
+                                        accept=".pdf,.jpg,.jpeg,.png"
+                                        onChange={(e) => setPoFile(e.target.files?.[0] || null)}
                                         className="w-full text-sm border border-gray-300 rounded p-2"
                                     />
                                 </div>

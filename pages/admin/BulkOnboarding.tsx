@@ -102,7 +102,14 @@ export const BulkOnboarding: React.FC = () => {
         try {
             const response = await fetch(draft.image);
             const blob = await response.blob();
-            const imageUrl = await db.uploadImage(new File([blob], `${draft.sku}.jpg`, { type: 'image/jpeg' }));
+            // Determine file extension from MIME type or default to jpg
+            const ext = blob.type.split('/')[1] || 'jpg';
+            
+            // User requested 'webAssets' bucket for bulk onboarding images
+            const imageUrl = await db.uploadImage(
+                new File([blob], `${draft.sku}.${ext}`, { type: blob.type }),
+                'webAssets'
+            );
 
             const productData: Partial<Product> = {
                 name: draft.name, sku: draft.sku, category: draft.category,

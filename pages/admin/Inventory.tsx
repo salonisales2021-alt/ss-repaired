@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../../context/AppContext';
 import { Button } from '../../components/Button';
 import { db } from '../../services/db';
-import { StockLog, StockMovementType, Product, ProductVariant } from '../../types';
+import { StockLog, StockMovementType, Product, ProductVariant, ProductCategory } from '../../types';
 import { useToast } from '../../components/Toaster';
 
 type InventoryTab = 'OVERVIEW' | 'STICKER_STUDIO' | 'HISTORY';
@@ -28,6 +28,7 @@ export const Inventory: React.FC = () => {
     const [newQty, setNewQty] = useState('');
     const [reason, setReason] = useState('Periodic Audit');
     const [isSaving, setIsSaving] = useState(false);
+    const [isPreBook, setIsPreBook] = useState(false);
 
     useEffect(() => {
         if (activeTab === 'HISTORY') db.getStockLogs().then(setLogs);
@@ -50,6 +51,12 @@ export const Inventory: React.FC = () => {
         }
     };
 
+    const openAdjustModal = (p: Product, v: ProductVariant) => {
+        setAdjusting({p, v});
+        setNewQty(v.stock.toString());
+        setIsPreBook(p.category === ProductCategory.PRE_BOOK);
+    };
+
     const handleSaveStock = async () => {
         if (!adjusting || !newQty) return;
         setIsSaving(true);
@@ -58,7 +65,20 @@ export const Inventory: React.FC = () => {
                 v.id === adjusting.v.id ? { ...v, stock: Number(newQty) } : v
             );
             
-            await db.saveProduct({ ...adjusting.p, variants: updatedVariants });
+            // Handle Category Change (Pre-Book Toggle)
+            // If turning OFF Pre-Book, revert to WESTERN (Default fallback) or keep original if not pre-book
+            let newCategory = adjusting.p.category;
+            if (isPreBook) {
+                newCategory = ProductCategory.PRE_BOOK;
+            } else if (adjusting.p.category === ProductCategory.PRE_BOOK) {
+                newCategory = ProductCategory.WESTERN; 
+            }
+
+            await db.saveProduct({ 
+                ...adjusting.p, 
+                variants: updatedVariants,
+                category: newCategory
+            });
             
             await db.logStockMovement({
                 productId: adjusting.p.id,
@@ -67,7 +87,7 @@ export const Inventory: React.FC = () => {
                 variantDesc: `${adjusting.v.color} / ${adjusting.v.sizeRange}`,
                 quantity: Number(newQty),
                 type: 'ADJUSTMENT',
-                reason: reason,
+                reason: isPreBook ? `Converted to Pre-Book: ${reason}` : reason,
                 performedBy: user?.fullName || 'Admin'
             });
 
@@ -200,6 +220,9 @@ export const Inventory: React.FC = () => {
                                         <td className="p-5">
                                             <div className="font-bold text-gray-800 text-sm leading-tight">{p.name}</div>
                                             <div className="text-[10px] font-black text-gray-400 font-mono tracking-tighter uppercase mt-0.5">{p.sku}</div>
+                                            {p.category === ProductCategory.PRE_BOOK && (
+                                                <span className="inline-block bg-gold-100 text-gold-700 text-[8px] font-black px-1.5 py-0.5 rounded mt-1 border border-gold-200">PRE-BOOK</span>
+                                            )}
                                         </td>
                                         <td className="p-5">
                                             <div className="flex items-center gap-2">
@@ -216,7 +239,7 @@ export const Inventory: React.FC = () => {
                                         <td className="p-5 text-right">
                                             <div className="flex justify-end gap-2">
                                                 <button 
-                                                    onClick={() => { setAdjusting({p, v}); setNewQty(v.stock.toString()); }} 
+                                                    onClick={() => openAdjustModal(p, v)} 
                                                     className="bg-luxury-black text-white text-[9px] px-3 py-1.5 rounded-lg uppercase font-black tracking-widest hover:bg-rani-600 transition-all shadow-sm active:scale-95"
                                                 >
                                                     Update
@@ -356,10 +379,49 @@ export const Inventory: React.FC = () => {
                             </div>
                         </div>
                         <div className="space-y-6">
+                            {/* Stock Slider and Input */}
                             <div>
-                                <label className="block text-[10px] font-black uppercase text-gray-400 tracking-[0.2em] mb-2 ml-1">New Total Count (Sets)</label>
-                                <input type="number" className="w-full border-2 border-gray-200 rounded-xl px-4 py-3.5 outline-none focus:border-rani-500 text-xl font-black shadow-sm" value={newQty} onChange={e => setNewQty(e.target.value)} />
+                                <div className="flex justify-between items-center mb-2 ml-1">
+                                    <label className="block text-[10px] font-black uppercase text-gray-400 tracking-[0.2em]">New Total Count (Sets)</label>
+                                    <span className="text-lg font-black text-rani-600 bg-rani-50 px-2 rounded">{newQty}</span>
+                                </div>
+                                <input 
+                                    type="range" 
+                                    min="0" 
+                                    max="500" 
+                                    value={newQty} 
+                                    onChange={e => setNewQty(e.target.value)} 
+                                    className="w-full accent-rani-500 mb-4 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer" 
+                                />
+                                <input 
+                                    type="number" 
+                                    className="w-full border-2 border-gray-200 rounded-xl px-4 py-3.5 outline-none focus:border-rani-500 text-xl font-black shadow-sm" 
+                                    value={newQty} 
+                                    onChange={e => setNewQty(e.target.value)} 
+                                />
                             </div>
+
+                            {/* Pre-Book Converter Toggle */}
+                            <div className={`p-4 rounded-xl border-2 transition-all ${isPreBook ? 'bg-gold-50 border-gold-200' : 'bg-gray-50 border-gray-100'}`}>
+                                <label className="flex items-center justify-between cursor-pointer">
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-xl">{isPreBook ? '💎' : '📦'}</span>
+                                        <span className={`font-black uppercase text-xs tracking-widest ${isPreBook ? 'text-gold-800' : 'text-gray-500'}`}>
+                                            {isPreBook ? 'Pre-Book Exclusive' : 'Standard Stock'}
+                                        </span>
+                                    </div>
+                                    <div className="relative inline-flex items-center cursor-pointer">
+                                        <input type="checkbox" checked={isPreBook} onChange={(e) => setIsPreBook(e.target.checked)} className="sr-only peer" />
+                                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gold-500"></div>
+                                    </div>
+                                </label>
+                                <p className={`text-[9px] mt-2 leading-relaxed ${isPreBook ? 'text-gold-700' : 'text-gray-400'}`}>
+                                    {isPreBook 
+                                        ? "Item will be moved to the 'Pre-Book Club' category. Only approved VIP partners can access this stock."
+                                        : "Item is available in the general 'Western/Ethnic' catalog for all B2B partners."}
+                                </p>
+                            </div>
+
                             <div>
                                 <label className="block text-[10px] font-black uppercase text-gray-400 tracking-[0.2em] mb-2 ml-1">Narration Protocol</label>
                                 <select className="w-full border-2 border-gray-200 rounded-xl px-4 py-3.5 outline-none focus:border-rani-500 bg-white text-sm font-bold shadow-sm" value={reason} onChange={e => setReason(e.target.value)}>

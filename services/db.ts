@@ -763,12 +763,12 @@ export const db = {
         return supabase.storage.from('documents').getPublicUrl(fileName).data.publicUrl;
     },
 
-    uploadImage: async (file: File): Promise<string> => {
+    uploadImage: async (file: File, bucketName: string = 'products'): Promise<string> => {
         if (!supabase) return URL.createObjectURL(file);
         const fileName = `${Date.now()}-${file.name.replace(/\s/g, '_')}`;
-        const { error } = await supabase.storage.from('products').upload(fileName, file);
+        const { error } = await supabase.storage.from(bucketName).upload(fileName, file);
         if (error) throw error;
-        return supabase.storage.from('products').getPublicUrl(fileName).data.publicUrl;
+        return supabase.storage.from(bucketName).getPublicUrl(fileName).data.publicUrl;
     },
 
     uploadVideo: async (blob: Blob | File): Promise<string> => {

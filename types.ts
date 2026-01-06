@@ -97,6 +97,7 @@ export interface OrderDocuments {
   retailerMemoUrl?: string; 
   ewayBillUrl?: string;
   lrGrSlipUrl?: string;
+  purchaseOrderUrl?: string; // Admin uploaded PO
 }
 
 export interface TransportDetails {
@@ -133,7 +134,7 @@ export interface Order {
   gaddiName?: string;
   gaddiAmount?: number;
   poNumber?: string; // Gaddi Purchase Order Number
-  poImageUrl?: string; // URL of the uploaded P.O. image
+  poImageUrl?: string; // URL of the uploaded P.O. image (Gaddi flow)
 }
 
 // ... rest of existing types
