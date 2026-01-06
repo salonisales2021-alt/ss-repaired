@@ -37,7 +37,9 @@ const isDev = () => {
     }
 };
 
-if (!supabaseUrl || !supabaseKey) {
+export const isLiveData = !!(supabaseUrl && supabaseKey);
+
+if (!isLiveData) {
   // Only warn in dev mode to avoid cluttering prod logs
   if (isDev()) {
       console.warn("Supabase credentials missing in Environment Variables. App will run in limited capability mode.");
@@ -49,6 +51,6 @@ if (!supabaseUrl || !supabaseKey) {
   }
 }
 
-export const supabase = (supabaseUrl && supabaseKey) 
+export const supabase = isLiveData 
   ? createClient(supabaseUrl, supabaseKey) 
   : null;

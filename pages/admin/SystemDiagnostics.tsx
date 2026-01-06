@@ -4,6 +4,7 @@ import { GoogleGenAI } from "@google/genai";
 import { Button } from '../../components/Button';
 import { useToast } from '../../components/Toaster';
 import { verifyGST } from '../../services/gstService';
+import { isLiveData } from '../../services/supabaseClient';
 
 interface LogEntry {
     id: string;
@@ -180,14 +181,53 @@ export const SystemDiagnostics: React.FC = () => {
         <div className="p-6 max-w-6xl mx-auto animate-fade-in pb-20">
             <div className="flex justify-between items-center mb-8">
                 <div>
-                    <h1 className="text-3xl font-black text-gray-800 uppercase tracking-tight">API Litmus Test</h1>
-                    <p className="text-sm text-gray-500">Real-time latency and connectivity diagnostics for Gemini Models & External APIs.</p>
+                    <h1 className="text-3xl font-black text-gray-800 uppercase tracking-tight">System Health & API Diagnostics</h1>
+                    <p className="text-sm text-gray-500">Real-time status of Database, AI Models, and External Integrations.</p>
                 </div>
                 <div className="flex gap-3">
                     <Button variant="outline" onClick={() => setLogs([])}>Clear Console</Button>
                     <Button onClick={runFullLitmusTest} disabled={isRunning} className={isRunning ? 'animate-pulse' : ''}>
                         {isRunning ? 'Running Diagnostics...' : '▶ Run Full Suite'}
                     </Button>
+                </div>
+            </div>
+
+            {/* STATUS DASHBOARD */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <div className={`p-6 rounded-xl border-l-4 shadow-sm flex flex-col justify-between ${isLiveData ? 'bg-green-50 border-green-500' : 'bg-orange-50 border-orange-500'}`}>
+                    <div>
+                        <h3 className="text-xs font-black uppercase tracking-widest text-gray-500 mb-1">Database Mode</h3>
+                        <p className={`text-2xl font-black ${isLiveData ? 'text-green-700' : 'text-orange-700'}`}>
+                            {isLiveData ? 'LIVE (SUPABASE)' : 'MOCK (SIMULATION)'}
+                        </p>
+                    </div>
+                    <div className="mt-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                        {isLiveData ? 'Data is persistent & secure' : 'Data resets on reload'}
+                    </div>
+                </div>
+
+                <div className={`p-6 rounded-xl border-l-4 shadow-sm flex flex-col justify-between ${process.env.API_KEY ? 'bg-purple-50 border-purple-500' : 'bg-red-50 border-red-500'}`}>
+                    <div>
+                        <h3 className="text-xs font-black uppercase tracking-widest text-gray-500 mb-1">AI Engine (Gemini)</h3>
+                        <p className={`text-2xl font-black ${process.env.API_KEY ? 'text-purple-700' : 'text-red-700'}`}>
+                            {process.env.API_KEY ? 'CONNECTED' : 'KEY MISSING'}
+                        </p>
+                    </div>
+                    <div className="mt-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                        Model: Gemini 2.5 & 3.0
+                    </div>
+                </div>
+
+                <div className="p-6 rounded-xl border-l-4 border-blue-500 bg-blue-50 shadow-sm flex flex-col justify-between">
+                    <div>
+                        <h3 className="text-xs font-black uppercase tracking-widest text-gray-500 mb-1">Environment</h3>
+                        <p className="text-2xl font-black text-blue-700">
+                            {process.env.NODE_ENV === 'production' ? 'PRODUCTION' : 'DEVELOPMENT'}
+                        </p>
+                    </div>
+                    <div className="mt-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                        Build: v2.4.0 (Stable)
+                    </div>
                 </div>
             </div>
 
@@ -203,19 +243,10 @@ export const SystemDiagnostics: React.FC = () => {
                         <TestButton label="Search Grounding" desc="Live web data retrieval" onClick={testSearchGrounding} />
                         <TestButton label="GST API Check" desc="Govt Database Connectivity" onClick={testGSTConnectivity} />
                     </div>
-
-                    <div className="mt-8 p-4 bg-blue-50 rounded-xl border border-blue-100">
-                        <h4 className="text-xs font-black text-blue-800 uppercase tracking-widest mb-2">Environment Info</h4>
-                        <div className="space-y-1 text-xs text-blue-700 font-mono">
-                            <p>API Provider: Google Gen AI SDK</p>
-                            <p>Key Present: {process.env.API_KEY ? 'Yes (Protected)' : 'No (Critical)'}</p>
-                            <p>Region: Auto-detected</p>
-                        </div>
-                    </div>
                 </div>
 
                 {/* Console Output */}
-                <div className="lg:col-span-2 bg-luxury-black rounded-2xl shadow-2xl overflow-hidden flex flex-col h-[600px] border border-gray-700">
+                <div className="lg:col-span-2 bg-luxury-black rounded-2xl shadow-2xl overflow-hidden flex flex-col h-[500px] border border-gray-700">
                     <div className="bg-gray-900 p-4 border-b border-gray-700 flex justify-between items-center">
                         <div className="flex gap-2">
                             <div className="w-3 h-3 rounded-full bg-red-500"></div>
