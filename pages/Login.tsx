@@ -197,9 +197,20 @@ export const Login: React.FC = () => {
                       </Link>
                   </div>
                   
-                  <div className="mt-20 text-center">
-                    <p className="text-sm font-bold text-gray-400 uppercase tracking-widest">Administrative Access</p>
-                    <Link to="/admin/login" className="text-rani-500 font-black text-xl hover:underline mt-2 inline-block">Admin Login</Link>
+                  <div className="mt-12 flex flex-col items-center justify-center space-y-8">
+                      <div className="text-center">
+                        <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">New Partner?</p>
+                        <Link to="/register" className="px-8 py-3 bg-rani-600 text-white rounded-xl font-bold text-xs uppercase tracking-widest shadow-lg hover:bg-rani-700 transition-colors inline-block">
+                            Apply for Dealership
+                        </Link>
+                      </div>
+
+                      <div className="w-24 h-px bg-gray-200"></div>
+
+                      <div className="text-center">
+                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Administrative Access</p>
+                        <Link to="/admin/login" className="text-rani-500 font-black text-lg hover:underline mt-1 inline-block">Admin Login</Link>
+                      </div>
                   </div>
               </div>
           </div>
@@ -302,6 +313,15 @@ export const Login: React.FC = () => {
                         {loading ? 'Verifying...' : 'Unlock Portal'}
                     </Button>
                 </form>
+
+                {!isAdminRoute && (
+                    <div className="mt-6 text-center">
+                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-1">New Business?</p>
+                        <Link to="/register" className="text-xs font-black text-rani-600 hover:text-rani-700 underline decoration-2 underline-offset-4 transition-colors">
+                            Register for B2B Access
+                        </Link>
+                    </div>
+                )}
             </div>
         )}
 

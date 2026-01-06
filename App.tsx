@@ -76,7 +76,7 @@ const CatalogMaker = React.lazy(() => import('./pages/admin/CatalogMaker').then(
 const BulkOnboarding = React.lazy(() => import('./pages/admin/BulkOnboarding').then(m => ({ default: m.BulkOnboarding })));
 const BulkClientOnboarding = React.lazy(() => import('./pages/admin/BulkClientOnboarding').then(m => ({ default: m.BulkClientOnboarding })));
 const SystemDiagnostics = React.lazy(() => import('./pages/admin/SystemDiagnostics').then(m => ({ default: m.SystemDiagnostics })));
-const DispatchShop = React.lazy(() => import('./pages/admin/DispatchShop').then(m => ({ default: m.DispatchShop }))); // New import
+const DispatchShop = React.lazy(() => import('./pages/admin/DispatchShop').then(m => ({ default: m.DispatchShop })));
 
 // Specialized Dashboards
 const AgentDashboard = React.lazy(() => import('./pages/agent/AgentDashboard').then(m => ({ default: m.AgentDashboard })));

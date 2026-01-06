@@ -277,6 +277,19 @@ export const db = {
         return { ...data, basePrice: data.base_price, isAvailable: data.active } as Product;
     },
 
+    deleteProduct: async (productId: string): Promise<boolean> => {
+        if (!supabase) {
+            const idx = MOCK_PRODUCTS.findIndex(p => p.id === productId);
+            if (idx > -1) {
+                MOCK_PRODUCTS.splice(idx, 1);
+                return true;
+            }
+            return false;
+        }
+        const { error } = await supabase.from('products').delete().eq('id', productId);
+        return !error;
+    },
+
     /**
      * USERS / PROFILES
      */
@@ -420,6 +433,8 @@ export const db = {
         if (updates.status) dbUpdates.status = updates.status;
         if (updates.documents) dbUpdates.documents = updates.documents;
         if (updates.trackingNumber) dbUpdates.tracking_number = updates.trackingNumber;
+        if (updates.poNumber) dbUpdates.po_number = updates.poNumber;
+        if (updates.poImageUrl) dbUpdates.po_image_url = updates.poImageUrl;
         const { error } = await supabase.from('orders').update(dbUpdates).eq('id', orderId);
         return !error;
     },

@@ -123,6 +123,24 @@ export const ProductEditor: React.FC = () => {
         } catch (error) { toast("Error saving to database.", "error"); } finally { setLoading(false); }
     };
 
+    const handleDelete = async (id: string) => {
+        if (!window.confirm("Are you sure you want to permanently delete this product?")) return;
+        setLoading(true);
+        try {
+            const success = await db.deleteProduct(id);
+            if (success) {
+                toast("Product deleted successfully", "success");
+                refreshProducts();
+            } else {
+                toast("Failed to delete product", "error");
+            }
+        } catch (e) {
+            toast("Error deleting product", "error");
+        } finally {
+            setLoading(false);
+        }
+    };
+
     if (view === 'LIST') {
         const filteredProducts = products.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()) || p.sku.toLowerCase().includes(searchTerm.toLowerCase()));
         return (
@@ -152,7 +170,16 @@ export const ProductEditor: React.FC = () => {
                                     <div className="text-[10px] font-black text-gray-400 font-mono tracking-tighter uppercase">{p.sku} • {p.category}</div>
                                 </td>
                                 <td className="p-5 font-black text-luxury-black">₹{p.basePrice.toLocaleString()}</td>
-                                <td className="p-5 text-right"><Button size="sm" variant="outline" onClick={() => startEdit(p)}>Manage</Button></td>
+                                <td className="p-5 text-right">
+                                    <div className="flex justify-end gap-2">
+                                        <Button size="sm" variant="outline" onClick={() => startEdit(p)}>Manage</Button>
+                                        <Button size="sm" variant="text" className="text-red-500 hover:bg-red-50 px-3" onClick={() => handleDelete(p.id)} title="Delete Product">
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                            </svg>
+                                        </Button>
+                                    </div>
+                                </td>
                             </tr>
                         ))}</tbody>
                     </table>
