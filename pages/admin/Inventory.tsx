@@ -81,6 +81,7 @@ export const Inventory: React.FC = () => {
             });
             
             await db.logStockMovement({
+                id: `sl-${Date.now()}`,
                 productId: adjusting.p.id,
                 variantId: adjusting.v.id,
                 productName: adjusting.p.name,
@@ -88,6 +89,7 @@ export const Inventory: React.FC = () => {
                 quantity: Number(newQty),
                 type: 'ADJUSTMENT',
                 reason: isPreBook ? `Converted to Pre-Book: ${reason}` : reason,
+                date: new Date().toISOString(),
                 performedBy: user?.fullName || 'Admin'
             });
 
@@ -124,6 +126,7 @@ export const Inventory: React.FC = () => {
                         
                         // Log each change
                         db.logStockMovement({
+                            id: `sl-bulk-${Date.now()}-${v.id}`,
                             productId: p.id,
                             variantId: v.id,
                             productName: p.name,
@@ -131,6 +134,7 @@ export const Inventory: React.FC = () => {
                             quantity: finalStock,
                             type: 'ADJUSTMENT',
                             reason: bulkReason,
+                            date: new Date().toISOString(),
                             performedBy: user?.fullName || 'Admin'
                         });
 

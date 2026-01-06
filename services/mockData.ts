@@ -4,7 +4,7 @@ import { Product, ProductCategory, UserRole, User, Order, PaymentCategory, Revie
 export const MOCK_USERS: User[] = [
   {
     id: 'u-admin',
-    email: 'admin@saloni.com',
+    email: 'admin@salonisale.com',
     fullName: 'Sarthak Huria',
     businessName: 'Saloni HQ',
     role: UserRole.SUPER_ADMIN,
@@ -16,7 +16,7 @@ export const MOCK_USERS: User[] = [
   },
   {
     id: 'u-dispatch',
-    email: 'dispatch@saloni.com',
+    email: 'dispatch@salonisale.com',
     fullName: 'Dispatch Team',
     businessName: 'Saloni Logistics',
     role: UserRole.DISPATCH,
@@ -60,7 +60,7 @@ export const MOCK_USERS: User[] = [
   },
   {
     id: 'u-retailer',
-    email: 'retailer@saloni.com',
+    email: 'retailer@salonisale.com',
     fullName: 'Priya Sharma',
     businessName: 'Priya Boutique',
     role: UserRole.RETAILER,
@@ -75,7 +75,7 @@ export const MOCK_USERS: User[] = [
   },
   {
     id: 'u-agent',
-    email: 'agent@saloni.com',
+    email: 'agent@salonisale.com',
     fullName: 'Amit Verma',
     businessName: 'Verma Sales Agency',
     role: UserRole.AGENT,
