@@ -184,7 +184,13 @@ export const db = {
             }
         }
         // Mock Auth
-        const user = localUsers.find(u => u.email.toLowerCase() === email.toLowerCase());
+        const term = email.toLowerCase().trim();
+        // Allow fuzzy matching for demo convenience (e.g. 'admin' -> 'admin@salonisale.com')
+        const user = localUsers.find(u => 
+            u.email.toLowerCase() === term || 
+            u.email.toLowerCase().split('@')[0] === term
+        );
+        
         if (user) {
             return { user };
         }
@@ -214,14 +220,28 @@ export const db = {
             // 2. Return data (The ID is needed)
             if (authData.user) {
                 const newUser = { ...user, id: authData.user.id };
-                // We don't manually insert into 'users' because the trigger does it.
-                // However, we might want to update extra fields that the trigger missed
-                await supabase.from('users').update({
+                
+                // ROBUSTNESS FIX: Use upsert instead of update.
+                // If the SQL trigger failed (silently caught), this will CREATE the row.
+                // If the SQL trigger succeeded, this will just update/confirm the row.
+                const { error: profileError } = await supabase.from('users').upsert({
+                    id: authData.user.id,
+                    email: user.email,
+                    fullName: user.fullName,
+                    role: user.role,
                     mobile: user.mobile,
                     gstin: user.gstin,
                     "aadharNumber": user.aadharNumber,
-                    "businessName": user.businessName
-                }).eq('id', authData.user.id);
+                    "businessName": user.businessName,
+                    isApproved: false,
+                    creditLimit: 0,
+                    outstandingDues: 0
+                });
+
+                if (profileError) {
+                    console.warn("Client-side profile upsert warning:", profileError.message);
+                    // We don't fail here because the Auth User was created.
+                }
 
                 return { success: true, data: newUser };
             }
