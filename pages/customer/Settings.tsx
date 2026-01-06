@@ -68,19 +68,46 @@ export const Settings: React.FC = () => {
         }
     };
 
-    const handleChangePassword = (e: React.FormEvent) => {
+    const handleChangePassword = async (e: React.FormEvent) => {
         e.preventDefault();
         if (formData.newPassword !== formData.confirmPassword) {
             alert("New passwords do not match.");
             return;
         }
+        
+        if (!formData.currentPassword) {
+            alert("Please enter your current password to verify identity.");
+            return;
+        }
+
         setIsSaving(true);
-        // Supabase password update would go here if implemented
-        setTimeout(() => {
+        
+        try {
+            // 1. Verify Current Password by attempting to sign in
+            // This ensures the user knows their current password before changing it
+            const { error: verifyError } = await db.signIn(user?.email || '', formData.currentPassword);
+            
+            if (verifyError) {
+                alert("Current password is incorrect. Please try again.");
+                setIsSaving(false);
+                return;
+            }
+
+            // 2. Update to New Password
+            const { success, error } = await db.updatePassword(formData.newPassword);
+            
+            if (success) {
+                setFormData(prev => ({ ...prev, currentPassword: '', newPassword: '', confirmPassword: '' }));
+                alert("Password updated successfully.");
+            } else {
+                alert(error || "Failed to update password.");
+            }
+        } catch (err) {
+            console.error(err);
+            alert("An unexpected error occurred.");
+        } finally {
             setIsSaving(false);
-            setFormData(prev => ({ ...prev, currentPassword: '', newPassword: '', confirmPassword: '' }));
-            alert("Password change requested. Check your email for confirmation.");
-        }, 1000);
+        }
     };
 
     const handleBiometricToggle = async () => {
@@ -230,7 +257,7 @@ export const Settings: React.FC = () => {
                                 />
                                 <div className="pt-2">
                                     <Button variant="outline" disabled={isSaving}>
-                                        Request Password Change
+                                        Change Password
                                     </Button>
                                 </div>
                             </form>

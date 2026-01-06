@@ -13,7 +13,6 @@ import { ScrollToTop } from './components/ScrollToTop';
 import { Footer } from './components/Footer';
 import { Button } from './components/Button';
 import { TutorialOverlay } from './components/TutorialOverlay';
-import { DemoControls } from './components/DemoControls';
 import { InstallPwaPrompt } from './components/InstallPwaPrompt';
 import { UserRole } from './types';
 import { LoadingSpinner } from './components/LoadingSpinner';
@@ -38,6 +37,7 @@ const Settings = React.lazy(() => import('./pages/customer/Settings').then(m => 
 const Wishlist = React.lazy(() => import('./pages/customer/Wishlist').then(m => ({ default: m.Wishlist })));
 const BookVisit = React.lazy(() => import('./pages/customer/BookVisit').then(m => ({ default: m.BookVisit })));
 const Support = React.lazy(() => import('./pages/customer/Support').then(m => ({ default: m.Support })));
+const PreBook = React.lazy(() => import('./pages/customer/PreBook').then(m => ({ default: m.PreBook })));
 
 // AI Features
 const Collections = React.lazy(() => import('./pages/customer/Collections').then(m => ({ default: m.Collections }))); // Visual Scout
@@ -56,6 +56,7 @@ const NotFound = React.lazy(() => import('./pages/public/NotFound').then(m => ({
 // Auth
 const Login = React.lazy(() => import('./pages/Login').then(m => ({ default: m.Login })));
 const Register = React.lazy(() => import('./pages/Register').then(m => ({ default: m.Register })));
+const UpdatePassword = React.lazy(() => import('./pages/UpdatePassword').then(m => ({ default: m.UpdatePassword })));
 
 // Admin
 const AdminLayout = React.lazy(() => import('./pages/admin/AdminDashboard').then(m => ({ default: m.AdminLayout })));
@@ -77,6 +78,7 @@ const CatalogMaker = React.lazy(() => import('./pages/admin/CatalogMaker').then(
 const BulkOnboarding = React.lazy(() => import('./pages/admin/BulkOnboarding').then(m => ({ default: m.BulkOnboarding })));
 const BulkClientOnboarding = React.lazy(() => import('./pages/admin/BulkClientOnboarding').then(m => ({ default: m.BulkClientOnboarding })));
 const SystemDiagnostics = React.lazy(() => import('./pages/admin/SystemDiagnostics').then(m => ({ default: m.SystemDiagnostics })));
+const DispatchShop = React.lazy(() => import('./pages/admin/DispatchShop').then(m => ({ default: m.DispatchShop })));
 
 // Specialized Dashboards
 const AgentDashboard = React.lazy(() => import('./pages/agent/AgentDashboard').then(m => ({ default: m.AgentDashboard })));
@@ -103,7 +105,6 @@ const CustomerLayout = () => {
           <AIChatbot />
       </div>
       <LiveSalesAgent />
-      <DemoControls />
       <InstallPwaPrompt />
       
       {/* WhatsApp Floating Button */}
@@ -167,6 +168,7 @@ function App() {
                 <Route path="/" element={<CustomerLayout />}>
                   <Route index element={<CustomerHome />} />
                   <Route path="shop" element={<Shop />} />
+                  <Route path="pre-book" element={<PreBook />} />
                   <Route path="quick-order" element={<QuickOrder />} />
                   <Route path="product/:id" element={<ProductDetail />} />
                   <Route path="cart" element={<Cart />} />
@@ -205,6 +207,12 @@ function App() {
                   </Suspense>
                 } />
                 
+                <Route path="/update-password" element={
+                  <Suspense fallback={<LoadingSpinner />}>
+                    <UpdatePassword />
+                  </Suspense>
+                } />
+                
                 <Route path="/admin/invoice/:orderId" element={
                   <Suspense fallback={<LoadingSpinner />}>
                     <InvoiceGenerator />
@@ -221,6 +229,7 @@ function App() {
                   <Route index element={<Navigate to="dashboard" replace />} />
                   <Route path="dashboard" element={<DashboardHome />} />
                   <Route path="orders" element={<OrderManager />} /> 
+                  <Route path="shop-orders" element={<DispatchShop />} />
                   <Route path="finance" element={<Finance />} />
                   <Route path="products" element={<ProductEditor />} /> 
                   <Route path="bulk-onboarding" element={<BulkOnboarding />} />

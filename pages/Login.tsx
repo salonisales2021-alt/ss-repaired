@@ -6,8 +6,9 @@ import { Button } from '../components/Button';
 import { Input } from '../components/Input';
 import { BrandLogo } from '../components/BrandLogo';
 import { UserRole } from '../types';
+import { db } from '../services/db';
 
-type LoginStep = 'CREDENTIALS' | 'BIOMETRIC' | 'OTP';
+type LoginStep = 'CREDENTIALS' | 'BIOMETRIC' | 'OTP' | 'FORGOT_PASSWORD';
 
 export const Login: React.FC = () => {
   const { login, biometricLogin, isBiometricAvailable } = useApp();
@@ -26,6 +27,7 @@ export const Login: React.FC = () => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
   
   const [otpValue, setOtpValue] = useState(['', '', '', '', '', '']);
   const [bioStatus, setBioStatus] = useState<'IDLE' | 'SCANNING' | 'SUCCESS'>('IDLE');
@@ -94,6 +96,31 @@ export const Login: React.FC = () => {
           }
       } catch (e) {
           setErrorMsg("Biometric verification failed on device.");
+      } finally {
+          setLoading(false);
+      }
+  };
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!identifier) {
+          setErrorMsg("Please enter your email address.");
+          return;
+      }
+      
+      setLoading(true);
+      setErrorMsg(null);
+      setSuccessMsg(null);
+
+      try {
+          const result = await db.resetPasswordForEmail(identifier);
+          if (result.success) {
+              setSuccessMsg(`Password reset link sent to ${identifier}. Please check your email.`);
+          } else {
+              setErrorMsg(result.error || "Failed to send reset link. Please check the email.");
+          }
+      } catch (err) {
+          setErrorMsg("An unexpected error occurred.");
       } finally {
           setLoading(false);
       }
@@ -262,16 +289,25 @@ export const Login: React.FC = () => {
       <div className="bg-white w-full max-w-md p-10 rounded-3xl shadow-2xl border border-gray-100 relative overflow-hidden">
         <div className="absolute top-0 right-0 w-32 h-32 bg-rani-500/5 rounded-full -mr-16 -mt-16"></div>
         
+        {/* Back Button for All Steps except initial Admin/User select */}
+        <button 
+            onClick={() => {
+                if (step === 'CREDENTIALS') {
+                    isAdminRoute ? setAdminProfile(null) : navigate('/login');
+                } else {
+                    setStep('CREDENTIALS');
+                    setErrorMsg(null);
+                    setSuccessMsg(null);
+                }
+            }}
+            className="absolute top-8 left-8 text-gray-400 hover:text-rani-500 flex items-center gap-2 text-[10px] font-black uppercase tracking-widest transition-all"
+        >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
+            Go Back
+        </button>
+
         {step === 'CREDENTIALS' && (
             <div className="animate-fade-in">
-                <button 
-                    onClick={() => isAdminRoute ? setAdminProfile(null) : navigate('/login')}
-                    className="absolute top-8 left-8 text-gray-400 hover:text-rani-500 flex items-center gap-2 text-[10px] font-black uppercase tracking-widest transition-all"
-                >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
-                    Go Back
-                </button>
-                
                 <div className="text-center mb-12 pt-10 flex flex-col items-center">
                     <BrandLogo className="h-32 mb-6" />
                     <h2 className="text-sm font-black text-gray-400 uppercase tracking-[0.3em] mb-2">
@@ -309,6 +345,11 @@ export const Login: React.FC = () => {
                 <form onSubmit={(e) => handleLogin(e)} className="space-y-6">
                     <Input label="Email Address" type="text" placeholder="user@company.com" value={identifier} onChange={(e) => setIdentifier(e.target.value)} required className="rounded-xl h-14 font-bold" />
                     <Input label="Security Key" type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} required className="rounded-xl h-14" />
+                    
+                    <div className="flex justify-end -mt-4">
+                        <button type="button" onClick={() => setStep('FORGOT_PASSWORD')} className="text-[10px] font-bold text-gray-400 hover:text-rani-600 uppercase tracking-widest">Forgot Password?</button>
+                    </div>
+
                     <Button fullWidth disabled={loading} className="rounded-xl h-16 shadow-2xl shadow-rani-500/20 font-black uppercase tracking-[0.2em] text-sm italic">
                         {loading ? 'Verifying...' : 'Unlock Portal'}
                     </Button>
@@ -321,6 +362,57 @@ export const Login: React.FC = () => {
                             Register for B2B Access
                         </Link>
                     </div>
+                )}
+            </div>
+        )}
+
+        {step === 'FORGOT_PASSWORD' && (
+            <div className="animate-fade-in pt-12">
+                <div className="text-center mb-8 flex flex-col items-center">
+                    <div className="w-16 h-16 bg-blue-50 text-blue-500 rounded-full flex items-center justify-center mb-4 shadow-inner">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                        </svg>
+                    </div>
+                    <h3 className="text-xl font-black text-gray-800 uppercase tracking-tight mb-2">Recover Account</h3>
+                    <p className="text-xs text-gray-500 max-w-[250px] mx-auto">
+                        Enter your registered email to receive a password reset link.
+                    </p>
+                </div>
+
+                {errorMsg && (
+                    <div className="p-4 rounded-xl text-[11px] mb-6 font-bold bg-red-50 border border-red-200 text-red-700">
+                        {errorMsg}
+                    </div>
+                )}
+
+                {successMsg && (
+                    <div className="p-4 rounded-xl text-[11px] mb-6 font-bold bg-green-50 border border-green-200 text-green-700">
+                        {successMsg}
+                    </div>
+                )}
+
+                {!successMsg && (
+                    <form onSubmit={handleForgotPassword} className="space-y-6">
+                        <Input 
+                            label="Email Address" 
+                            type="email" 
+                            placeholder="user@company.com" 
+                            value={identifier} 
+                            onChange={(e) => setIdentifier(e.target.value)} 
+                            required 
+                            className="rounded-xl h-14 font-bold" 
+                        />
+                        <Button fullWidth disabled={loading} className="rounded-xl h-14 font-black uppercase tracking-widest shadow-lg">
+                            {loading ? 'Sending...' : 'Send Reset Link'}
+                        </Button>
+                    </form>
+                )}
+                
+                {successMsg && (
+                    <Button fullWidth onClick={() => setStep('CREDENTIALS')} className="rounded-xl h-14 font-black uppercase tracking-widest shadow-lg mt-4">
+                        Back to Login
+                    </Button>
                 )}
             </div>
         )}
