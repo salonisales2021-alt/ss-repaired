@@ -25,7 +25,15 @@ export const DesignStudio: React.FC = () => {
         setGeneratedImage(null);
 
         try {
-            const response = await fetch(selectedProduct.images[0]);
+            // FIX: Ensure image URL is a string
+            const imageUrl = selectedProduct.images[0] || '';
+            if (!imageUrl) {
+                alert("Selected product has no valid image to modify.");
+                setIsGenerating(false);
+                return;
+            }
+
+            const response = await fetch(imageUrl);
             const blob = await response.blob();
             
             const reader = new FileReader();
@@ -100,17 +108,24 @@ export const DesignStudio: React.FC = () => {
         setIsSubmitting(true);
         try {
             // Upload the AI design to storage first
-            const res = await fetch(generatedImage);
+            // FIX: Ensure generatedImage is treated as string
+            const safeImage = generatedImage || '';
+            if (!safeImage) throw new Error("No image generated");
+
+            const res = await fetch(safeImage);
             const blob = await res.blob();
             const file = new File([blob], `custom-design-${Date.now()}.png`, { type: 'image/png' });
             const imageUrl = await db.uploadImage(file);
 
+            // FIX: Handle optional businessName with fallback
+            const userNameSafe = user.businessName || user.fullName || 'Unknown User';
+
             // Create a support ticket as a Request for Quote (RFQ)
             await db.createTicket({
                 id: `rfq-${Date.now()}`,
-                userId: user.id,
-                userName: user.businessName || user.fullName,
-                subject: `Custom Design RFQ: ${selectedProduct.name}`,
+                userId: user.id || '',
+                userName: userNameSafe,
+                subject: `Custom Design RFQ: ${selectedProduct.name || 'Unknown Product'}`,
                 category: 'OTHER',
                 status: 'OPEN',
                 priority: 'HIGH',
@@ -119,9 +134,9 @@ export const DesignStudio: React.FC = () => {
                 messages: [
                     {
                         id: `m-${Date.now()}`,
-                        senderId: user.id,
-                        senderName: user.fullName,
-                        message: `Bulk Customization Request for SKU: ${selectedProduct.sku}. Changes Requested: ${prompt}. Visualization link: ${imageUrl}`,
+                        senderId: user.id || '',
+                        senderName: user.fullName || '',
+                        message: `Bulk Customization Request for SKU: ${selectedProduct.sku || 'N/A'}. Changes Requested: ${prompt}. Visualization link: ${imageUrl}`,
                         timestamp: new Date().toISOString()
                     }
                 ]
@@ -147,14 +162,15 @@ export const DesignStudio: React.FC = () => {
                 <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
                     {products.map(p => (
                         <div 
-                            key={p.id} 
+                            key={p.id || Math.random()} 
                             onClick={() => setSelectedProduct(p)}
                             className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer border transition-all ${selectedProduct?.id === p.id ? 'border-rani-500 bg-rani-50 ring-1 ring-rani-500' : 'border-gray-100 hover:bg-gray-50'}`}
                         >
-                            <img src={p.images[0]} alt="" className="w-12 h-12 object-cover rounded-md" />
+                            {/* FIX: p.images[0] can be undefined, fallback to empty string */}
+                            <img src={p.images[0] || ''} alt="" className="w-12 h-12 object-cover rounded-md" />
                             <div className="flex-1 min-w-0">
-                                <div className="text-sm font-bold text-gray-800 truncate">{p.name}</div>
-                                <div className="text-[10px] text-gray-400 font-mono">{p.sku}</div>
+                                <div className="text-sm font-bold text-gray-800 truncate">{p.name || 'Unnamed'}</div>
+                                <div className="text-[10px] text-gray-400 font-mono">{p.sku || 'NO SKU'}</div>
                             </div>
                         </div>
                     ))}
@@ -201,9 +217,10 @@ export const DesignStudio: React.FC = () => {
                             <span className="text-rani-500">3.</span> {t('studio.result')}
                         </h2>
                         <div className="relative group rounded-lg overflow-hidden border border-gray-100 mb-6 aspect-video bg-gray-100">
-                            <img src={generatedImage} alt="Customized Design" className="w-full h-full object-contain" />
+                            {/* FIX: Fallback for src */}
+                            <img src={generatedImage || ''} alt="Customized Design" className="w-full h-full object-contain" />
                             <div className="absolute top-4 right-4 flex gap-2">
-                                <button onClick={() => window.open(generatedImage, '_blank')} className="bg-white/80 backdrop-blur-sm p-2 rounded-full shadow-md hover:bg-white transition-colors">👁️</button>
+                                <button onClick={() => window.open(generatedImage || '', '_blank')} className="bg-white/80 backdrop-blur-sm p-2 rounded-full shadow-md hover:bg-white transition-colors">👁️</button>
                             </div>
                         </div>
                         <div className="bg-orange-50 border border-orange-100 p-4 rounded-lg mb-6">
