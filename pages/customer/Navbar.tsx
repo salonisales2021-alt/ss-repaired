@@ -283,12 +283,13 @@ export const CustomerNavbar: React.FC = () => {
             </div>
         </div>
       </div>
+    </header>
       
-      {/* Sidebar */}
+      {/* Sidebar - Inline Definition to prevent remounting issues */}
       <div 
         className={`fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm transition-opacity duration-300 ${isMenuOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} 
         onClick={() => setIsMenuOpen(false)}
-        aria-hidden={!isMenuOpen ? "true" : "false"}
+        aria-hidden={!isMenuOpen}
       >
           <aside 
             ref={sidebarRef}
