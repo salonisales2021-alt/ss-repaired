@@ -346,8 +346,8 @@ export const Login: React.FC = () => {
                     <Input label="Email Address" type="text" placeholder="user@company.com" value={identifier} onChange={(e) => setIdentifier(e.target.value)} required className="rounded-xl h-14 font-bold" />
                     <Input label="Security Key" type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} required className="rounded-xl h-14" />
                     
-                    <div className="flex justify-end -mt-4">
-                        <button type="button" onClick={() => setStep('FORGOT_PASSWORD')} className="text-[10px] font-bold text-gray-400 hover:text-rani-600 uppercase tracking-widest">Forgot Password?</button>
+                    <div className="flex justify-between items-center -mt-4">
+                        <button type="button" onClick={() => setStep('FORGOT_PASSWORD')} className="text-[10px] font-bold text-gray-400 hover:text-rani-600 uppercase tracking-widest ml-auto">Forgot Password?</button>
                     </div>
 
                     <Button fullWidth disabled={loading} className="rounded-xl h-16 shadow-2xl shadow-rani-500/20 font-black uppercase tracking-[0.2em] text-sm italic">
