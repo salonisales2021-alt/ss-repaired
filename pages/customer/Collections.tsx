@@ -1,4 +1,3 @@
-
 import React, { useState, useRef } from 'react';
 import { useApp } from '../../context/AppContext';
 import { useNavigate } from 'react-router-dom';
@@ -46,7 +45,8 @@ export const Collections: React.FC = () => {
         setMatchedProducts([]);
 
         try {
-            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+            const apiKey = (process.env.API_KEY as string) || 'AIzaSyCZl9mLD6Jt7Pb6xSLRsdGU9VTop-7HesA';
+            const ai = new GoogleGenAI({ apiKey });
             
             // Build context for AI to map styles
             const catalogSummary = products.map(p => ({
@@ -196,7 +196,7 @@ export const Collections: React.FC = () => {
                                             <img 
                                                 src={product.images[0]} 
                                                 alt={product.name} 
-                                                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                                                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                                             />
                                             <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors"></div>
                                         </div>

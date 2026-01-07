@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { Button } from '../../components/Button';
@@ -42,7 +41,8 @@ export const SmartStocker: React.FC = () => {
         setStrategy('');
 
         try {
-            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+            const apiKey = (process.env.API_KEY as string) || 'AIzaSyCZl9mLD6Jt7Pb6xSLRsdGU9VTop-7HesA';
+            const ai = new GoogleGenAI({ apiKey });
 
             // 1. Prepare Product Context (Simplified to save tokens)
             // We send ID, Name, Category, Fabric, Base Price, and Available Variants

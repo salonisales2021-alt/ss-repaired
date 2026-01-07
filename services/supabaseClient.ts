@@ -1,4 +1,3 @@
-
 import { createClient } from '@supabase/supabase-js';
 
 /**
@@ -6,9 +5,11 @@ import { createClient } from '@supabase/supabase-js';
  * Using credentials provided for the Saloni Sales project.
  */
 
+const env = (import.meta as any).env || {};
+
 // Credentials provided
-const SUPABASE_URL = 'https://tikuoenvshrrweahpvpb.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRpa3VvZW52c2hycndlYWhwdnBiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ0OTc0MDcsImV4cCI6MjA4MDA3MzQwN30.Zd_EX3qj2ViINN0gFdx1hzqeMRs5ygLqQb3EBfONvAo';
+const SUPABASE_URL = (env.VITE_SUPABASE_URL as string) || 'https://tikuoenvshrrweahpvpb.supabase.co';
+const SUPABASE_ANON_KEY = (env.VITE_SUPABASE_ANON_KEY as string) || 'Zd_EX3qj2ViINN0gFdx1hzqeMRs5ygLqQb3EBfONvAo';
 
 console.log("%c LIVE DATABASE CONNECTED ", "background: #10B981; color: white; font-weight: bold; padding: 2px 5px; border-radius: 3px;");
 

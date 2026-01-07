@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { Button } from '../../components/Button';
@@ -40,8 +39,9 @@ export const MarketingTools: React.FC = () => {
 
                 try {
                     setProgress('Initializing AI Video Engine (Veo)...');
-                    // Create NEW instance to ensure latest key is used
-                    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+                    // Ensure key exists
+                    const apiKey = (process.env.API_KEY as string) || 'AIzaSyCZl9mLD6Jt7Pb6xSLRsdGU9VTop-7HesA';
+                    const ai = new GoogleGenAI({ apiKey });
                     const fullPrompt = `${promptModifier}. Character is wearing: ${selectedProduct.name}. Fabric texture: ${selectedProduct.fabric}. Focus on fluid dress movement.`;
 
                     setProgress('Generating Video (this may take up to 2 minutes)...');
@@ -67,7 +67,7 @@ export const MarketingTools: React.FC = () => {
 
                     if (operation.response?.generatedVideos?.[0]?.video?.uri) {
                         const downloadLink = operation.response.generatedVideos[0].video.uri;
-                        setGeneratedVideoUrl(`${downloadLink}&key=${process.env.API_KEY}`);
+                        setGeneratedVideoUrl(`${downloadLink}&key=${apiKey}`);
                         setProgress('Video generation complete!');
                     } else {
                         throw new Error("Generation finished but no video URI was returned.");
