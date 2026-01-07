@@ -39,8 +39,9 @@ export const DesignStudio: React.FC = () => {
                 }
 
                 try {
-                    // Initialize AI client right before the call to ensure latest key is used
-                    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+                    // Ensure apiKey is a string, defaulting to empty if undefined
+                    const apiKey = process.env.API_KEY || '';
+                    const ai = new GoogleGenAI({ apiKey });
                     const modelName = isHighRes ? 'gemini-3-pro-image-preview' : 'gemini-2.5-flash-image';
                     
                     const config = isHighRes ? {
@@ -50,7 +51,6 @@ export const DesignStudio: React.FC = () => {
                         }
                     } : undefined;
 
-                    // Using array of parts directly for contents to satisfy type requirements
                     const result = await ai.models.generateContent({
                         model: modelName,
                         contents: {
@@ -59,7 +59,7 @@ export const DesignStudio: React.FC = () => {
                                 { text: `Modify this kids wear design based on these instructions: ${prompt}. Maintain the child model's features but change the dress details. High fashion photography style.` }
                             ]
                         },
-                        config: config as any // Cast to any to avoid strict type mismatch on optional config
+                        config: config as any
                     });
 
                     let newImageBase64 = '';
