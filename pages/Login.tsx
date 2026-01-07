@@ -453,7 +453,7 @@ export const Login: React.FC = () => {
                                 {otpValue.map((digit, idx) => (
                                     <input
                                         key={idx}
-                                        ref={(el) => otpRefs.current[idx] = el}
+                                        ref={(el) => { otpRefs.current[idx] = el; }}
                                         id={`otp-${idx}`}
                                         type="text"
                                         maxLength={1}

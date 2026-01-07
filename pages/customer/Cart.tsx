@@ -7,6 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import { db } from '../../services/db';
 import { useLanguage } from '../../context/LanguageContext';
 import { useToast } from '../../components/Toaster';
+import { NegotiationModal } from '../../components/NegotiationModal';
 
 export const Cart: React.FC = () => {
   const { cart, removeFromCart, cartTotal, clearCart, user, selectedClient, users } = useApp();
@@ -18,6 +19,10 @@ export const Cart: React.FC = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [orderSuccess, setOrderSuccess] = useState(false);
   
+  // Negotiation State
+  const [showNegotiation, setShowNegotiation] = useState(false);
+  const [negotiatedDiscount, setNegotiatedDiscount] = useState(0);
+
   // Use selectedClient if acting as proxy, otherwise use logged-in user
   const effectiveUser = selectedClient || user;
 
@@ -40,11 +45,13 @@ export const Cart: React.FC = () => {
       }
   }, [effectiveUser, users]);
 
-  // Pricing Logic with GST
+  // Pricing Logic with GST and Discount
   const subtotal = cartTotal;
   const gstRate = 0.05; // 5% GST
-  const gstAmount = Math.round(subtotal * gstRate);
-  const finalAmount = subtotal + gstAmount;
+  const discountAmount = Math.round(subtotal * (negotiatedDiscount / 100));
+  const discountedSubtotal = subtotal - discountAmount;
+  const gstAmount = Math.round(discountedSubtotal * gstRate);
+  const finalAmount = discountedSubtotal + gstAmount;
 
   const createOrderRecord = async (paymentId?: string, status: 'PENDING' | 'ACCEPTED' | 'GUARANTEED' = 'PENDING') => {
         if (!effectiveUser) return;
@@ -273,6 +280,12 @@ export const Cart: React.FC = () => {
                         <span>Lot Subtotal</span>
                         <span className="text-gray-900">₹{subtotal.toLocaleString()}</span>
                     </div>
+                    {negotiatedDiscount > 0 && (
+                        <div className="flex justify-between text-xs font-black uppercase text-green-600 tracking-widest">
+                            <span>Discount ({negotiatedDiscount}%)</span>
+                            <span>-₹{discountAmount.toLocaleString()}</span>
+                        </div>
+                    )}
                     <div className="flex justify-between text-xs font-black uppercase text-gray-400 tracking-widest">
                         <span>GST (5%)</span>
                         <span className="text-gray-900">₹{gstAmount.toLocaleString()}</span>
@@ -287,6 +300,16 @@ export const Cart: React.FC = () => {
                 </div>
 
                 <div className="space-y-4">
+                    {/* Negotiation Trigger */}
+                    {cartTotal > 10000 && negotiatedDiscount === 0 && (
+                        <button 
+                            onClick={() => setShowNegotiation(true)}
+                            className="w-full py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl text-xs font-black uppercase tracking-widest shadow-lg flex items-center justify-center gap-2 hover:scale-105 transition-transform"
+                        >
+                            <span>🤖</span> {t('cart.negotiate')}
+                        </button>
+                    )}
+
                     <div className="flex flex-col gap-2 mb-6">
                         <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Select Payment Protocol</label>
                         <div className="relative">
@@ -297,22 +320,22 @@ export const Cart: React.FC = () => {
                             >
                                 <option value={PaymentCategory.RAZORPAY}>1) Razorpay Online (Incl. GST)</option>
                                 
-                                {gaddiData ? (
+                                {negotiatedDiscount === 0 && gaddiData ? (
                                     <option value={PaymentCategory.GADDI}>2) Pay via Gaddi ({gaddiData.businessName})</option>
                                 ) : (
-                                    <option disabled>2) Gaddi (Not Linked)</option>
+                                    <option disabled>2) Gaddi (Not Linked / Discounted)</option>
                                 )}
 
-                                {agentData ? (
+                                {negotiatedDiscount === 0 && agentData ? (
                                     <option value={PaymentCategory.AGENT}>3) Pay via Agent ({agentData.fullName})</option>
                                 ) : (
-                                    <option disabled>3) Agent (Not Assigned)</option>
+                                    <option disabled>3) Agent (Not Assigned / Discounted)</option>
                                 )}
 
-                                {distributorData ? (
+                                {negotiatedDiscount === 0 && distributorData ? (
                                     <option value={PaymentCategory.DISTRIBUTOR_CREDIT}>4) Pay via Distributor ({distributorData.businessName})</option>
                                 ) : (
-                                    <option disabled>4) Distributor (Not Linked)</option>
+                                    <option disabled>4) Distributor (Not Linked / Discounted)</option>
                                 )}
                             </select>
                             <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">▼</div>
@@ -330,6 +353,19 @@ export const Cart: React.FC = () => {
             </div>
           </div>
         </div>
+
+        {/* Negotiation Modal */}
+        {showNegotiation && (
+            <NegotiationModal 
+                cartTotal={cartTotal}
+                onApplyDiscount={(percent) => {
+                    setNegotiatedDiscount(percent);
+                    setPaymentMethod(PaymentCategory.RAZORPAY); // Force cash for discount
+                    toast(t('cart.negotiationActive'), "success");
+                }}
+                onClose={() => setShowNegotiation(false)}
+            />
+        )}
       </div>
     );
 };
