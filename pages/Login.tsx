@@ -32,8 +32,6 @@ export const Login: React.FC = () => {
   const [otpValue, setOtpValue] = useState(['', '', '', '', '', '']);
   const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
   
-  const [bioStatus, setBioStatus] = useState<'IDLE' | 'SCANNING' | 'SUCCESS'>('IDLE');
-  
   const [hasBiometricSetup, setHasBiometricSetup] = useState(false);
   const [savedBioEmail, setSavedBioEmail] = useState<string | null>(null);
   
@@ -95,7 +93,8 @@ export const Login: React.FC = () => {
         
         // Simulate OTP send
         console.log("OTP Sent: 123456");
-        // alert("Admin Security: Your OTP code is 123456"); // Using toast/UI instead of alert in production ideally
+        // Using alert for demo purposes
+        window.alert("Admin Security: Your OTP code is 123456"); 
         return;
     }
 
@@ -127,22 +126,32 @@ export const Login: React.FC = () => {
               return;
           }
       } else if (method === 'BIO') {
-          // This calls the biometric service
           try {
+              // Note: This relies on saloni_bio_user_id being set in localStorage
               const bioResult = await biometricLogin();
-              // Note: biometricLogin in AppContext also sets the user state if successful
+              
               if (bioResult.success) {
-                  // If biometric succeeds, we are already logged in via context
+                  // If biometric succeeds, we are effectively logged in via the context update inside biometricLogin
+                  // But we should ensure the user matches pendingCreds for extra security
                   const userObj = JSON.parse(localStorage.getItem('saloni_active_user') || '{}');
+                  
+                  if (userObj.email !== pendingCreds.id) {
+                      setErrorMsg("Biometric user does not match login email.");
+                      // Force logout if mismatch
+                      await login('logout', 'CUSTOMER'); // Hacky logout or just ignore
+                      setLoading(false);
+                      return;
+                  }
+
                   proceedAfterLogin(userObj);
                   return;
               } else {
-                  setErrorMsg("Biometric verification failed.");
+                  setErrorMsg(bioResult.error || "Biometric verification failed.");
                   setLoading(false);
                   return;
               }
           } catch (e) {
-              setErrorMsg("Biometric error.");
+              setErrorMsg("Biometric system error.");
               setLoading(false);
               return;
           }
@@ -159,30 +168,6 @@ export const Login: React.FC = () => {
           }
       }
       setLoading(false);
-  };
-
-  const autofillAdmin = () => {
-      setIdentifier('admin@salonisale.com');
-      setPassword('password123');
-  };
-
-  const handleBiometricLogin = async () => {
-      setLoading(true);
-      setErrorMsg(null);
-      
-      try {
-          const result = await biometricLogin();
-          if (result.success) {
-              const userObj = JSON.parse(localStorage.getItem('saloni_active_user') || '{}');
-              proceedAfterLogin(userObj);
-          } else {
-              setErrorMsg(result.error || "Biometric login failed");
-          }
-      } catch (e) {
-          setErrorMsg("Biometric verification failed on device.");
-      } finally {
-          setLoading(false);
-      }
   };
 
   const handleForgotPassword = async (e: React.FormEvent) => {
@@ -252,7 +237,6 @@ export const Login: React.FC = () => {
                   </div>
                   
                   <div className="grid grid-cols-2 md:grid-cols-5 gap-4 md:gap-6">
-                      {/* ... existing role links ... */}
                       <Link to="/login?role=retailer" className="bg-white border border-gray-200 hover:border-rani-500 p-8 rounded-3xl shadow-sm hover:shadow-2xl transition-all duration-500 group flex flex-col items-center text-center">
                           <div className="w-16 h-16 bg-rani-50 rounded-2xl flex items-center justify-center mb-6 group-hover:bg-rani-500 group-hover:scale-110 group-hover:rotate-6 transition-all duration-500">
                               <span className="text-3xl">🏬</span>
@@ -396,11 +380,6 @@ export const Login: React.FC = () => {
                     <Input label="Security Key" type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} required className="rounded-xl h-14" />
                     
                     <div className="flex justify-between items-center -mt-4">
-                        {isAdminRoute && (
-                            <button type="button" onClick={autofillAdmin} className="text-[10px] font-bold text-blue-600 hover:underline uppercase tracking-widest">
-                                Auto-Fill Admin
-                            </button>
-                        )}
                         <button type="button" onClick={() => setStep('FORGOT_PASSWORD')} className="text-[10px] font-bold text-gray-400 hover:text-rani-600 uppercase tracking-widest ml-auto">Forgot Password?</button>
                     </div>
 

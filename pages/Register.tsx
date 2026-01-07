@@ -165,11 +165,12 @@ export const Register: React.FC = () => {
                 <form onSubmit={handleFinalSubmit} className="space-y-6">
                     <div>
                         <label className="block text-[10px] font-black uppercase text-gray-400 tracking-widest mb-2">Trade Designation</label>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                             {[
                                 { role: UserRole.RETAILER, title: 'Retailer', desc: 'Buy to stock shop' },
                                 { role: UserRole.LOCAL_TRADER, title: 'Local Trader', desc: 'Stock & Local Supply' },
-                                { role: UserRole.DISTRIBUTOR, title: 'Distributor', desc: 'Strict Bulk Distribution' }
+                                { role: UserRole.DISTRIBUTOR, title: 'Distributor', desc: 'Strict Bulk Distribution' },
+                                { role: UserRole.SUPER_ADMIN, title: 'Super Admin', desc: 'Full System Control' }
                             ].map(item => (
                                 <div 
                                     key={item.role}

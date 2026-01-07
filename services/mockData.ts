@@ -3,14 +3,14 @@ import { Product, ProductCategory, UserRole, User, Order, PaymentCategory, Revie
 
 export const MOCK_USERS: User[] = [
   {
-    id: 'u-admin',
-    email: 'admin@salonisale.com',
+    id: 'u-super-admin',
+    email: 'sarthak_huria@yahoo.com',
     fullName: 'Sarthak Huria',
-    businessName: 'Saloni HQ',
+    businessName: 'Saloni Sales HQ',
     role: UserRole.SUPER_ADMIN,
     isApproved: true,
     isPreBookApproved: true,
-    creditLimit: 10000000,
+    creditLimit: 100000000,
     outstandingDues: 0,
     mobile: '9911076258'
   },
@@ -152,7 +152,6 @@ export const MOCK_PRODUCTS: Product[] = [
 ];
 
 export const MOCK_ORDERS: Order[] = [
-    // Pre-create the order from the image for demo purposes
     {
         id: '42',
         userId: 'u-anurag',
@@ -172,8 +171,8 @@ export const MOCK_ORDERS: Order[] = [
                 hsnCode: '620429'
             }
         ],
-        totalAmount: 78750, // Simplified total from image
-        factoryAmount: 76387, // Amount after gaddi commission
+        totalAmount: 78750,
+        factoryAmount: 76387,
         guarantorId: 'u-jmjain',
         gaddiId: 'u-jmjain',
         gaddiName: 'J M Jain LLP',

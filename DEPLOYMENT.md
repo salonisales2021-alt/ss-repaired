@@ -37,6 +37,15 @@ Create the environment variables in your hosting provider (Vercel/Netlify).
 4.  Check **Supabase Table Editor** > `profiles` to confirm the user exists.
 5.  Test an AI feature (e.g., Smart Stocker) to ensure `API_KEY` is working.
 
+## 5. Emergency Access (Bootstrap Admin)
+If you need to access the Admin Panel immediately (e.g., before Supabase is fully linked or populated), use the hardcoded fallback credentials:
+
+*   **Login URL**: `/admin/login` or `/login`
+*   **Email**: `sarthak_huria@yahoo.com`
+*   **Password**: `Saloni@Growth2025!`
+
+*Note: This account bypasses the database auth check if the database is unreachable or the user doesn't exist.*
+
 ## Troubleshooting
 *   **"Table not found"**: Ensure you ran the `SUPABASE_SCHEMA.sql` script.
 *   **AI Errors**: Check if `API_KEY` is set correctly in Vercel settings.

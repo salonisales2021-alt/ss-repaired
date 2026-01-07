@@ -45,26 +45,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [users, setUsers] = useState<User[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [heroVideoUrl, setHeroVideoUrl] = useState<string | null>(null);
-  const [user, setUser] = useState<User | null>(() => {
-      try {
-          const savedUser = localStorage.getItem('saloni_active_user');
-          return savedUser ? JSON.parse(savedUser) : null;
-      } catch (error) { return null; }
-  });
+  // Default to null, do not read from localStorage to enforce fresh session
+  const [user, setUser] = useState<User | null>(null);
   const [selectedClient, setSelectedClient] = useState<User | null>(null);
-  const [cart, setCart] = useState<CartItem[]>(() => {
-      try {
-          const savedCart = localStorage.getItem('saloni_active_cart');
-          return savedCart ? JSON.parse(savedCart) : [];
-      } catch (error) { return []; }
-  });
+  // Default to empty array, do not read from localStorage
+  const [cart, setCart] = useState<CartItem[]>([]);
   const [allNotifications, setAllNotifications] = useState<Notification[]>(MOCK_NOTIFICATIONS);
   const [isTutorialOpen, setTutorialOpen] = useState(false);
   const [isBiometricAvailable, setIsBiometricAvailable] = useState(false);
-
-  useEffect(() => {
-    localStorage.setItem('saloni_active_cart', JSON.stringify(cart));
-  }, [cart]);
 
   useEffect(() => {
     // Initial Load
@@ -140,7 +128,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const login = async (identifier: string, roleType: 'ADMIN' | 'CUSTOMER', password?: string) => {
     // SECURITY: Clear existing user session before starting a new login process
-    localStorage.removeItem('saloni_active_user');
     setUser(null);
 
     const pwd = password || 'password123';
@@ -159,14 +146,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (roleType === 'ADMIN') {
         if (safeUser.role === UserRole.ADMIN || safeUser.role === UserRole.SUPER_ADMIN || safeUser.role === UserRole.DISPATCH) {
             setUser(safeUser);
-            localStorage.setItem('saloni_active_user', JSON.stringify(safeUser));
+            // We are NOT persisting to localStorage based on request
             return { success: true };
         }
         return { success: false, error: "ACCESS_DENIED: User is not an Administrator." };
     } else {
         if (!safeUser.isApproved) return { success: false, error: "PENDING_APPROVAL" };
         setUser(safeUser);
-        localStorage.setItem('saloni_active_user', JSON.stringify(safeUser));
+        // We are NOT persisting to localStorage based on request
         return { success: true };
     }
   };
@@ -206,7 +193,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
               delete (safeUser as any).password;
               
               setUser(safeUser);
-              localStorage.setItem('saloni_active_user', JSON.stringify(safeUser));
               return { success: true };
           }
       }
@@ -285,7 +271,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       
       const updatedUser = { ...user, wishlist: newWishlist };
       setUser(updatedUser);
-      localStorage.setItem('saloni_active_user', JSON.stringify(updatedUser));
       await db.updateUser(updatedUser);
   };
 

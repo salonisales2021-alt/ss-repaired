@@ -1,3 +1,4 @@
+
 import { supabase } from './supabaseClient';
 import { 
     User, 
@@ -72,18 +73,36 @@ export const db = {
         const prodToSave = { ...product };
         if (!prodToSave.id) prodToSave.id = `p-${Date.now()}`;
         
+        // 1. Try DB Save
         const { error } = await supabase.from('products').upsert(prodToSave);
+        
+        // 2. Sync with Mock Data (For Demo Mode Persistence)
+        const existingIdx = MOCK_PRODUCTS.findIndex(p => p.id === prodToSave.id);
+        if (existingIdx > -1) {
+            MOCK_PRODUCTS[existingIdx] = { ...MOCK_PRODUCTS[existingIdx], ...prodToSave } as Product;
+        } else {
+            MOCK_PRODUCTS.push(prodToSave as Product);
+        }
+
         if (error) {
             console.error("DB Error saveProduct:", error);
-            // In a real app we might return false, but for hybrid mode we pretend success if offline
+            // Return true so the UI updates optimistically based on the Mock sync above
             return true; 
         }
         return true;
     },
 
     deleteProduct: async (id: string): Promise<boolean> => {
+        // 1. Try DB Delete
         const { error } = await supabase.from('products').delete().eq('id', id);
-        return !error;
+        
+        // 2. Sync with Mock Data (For Demo Mode Persistence)
+        const mockIndex = MOCK_PRODUCTS.findIndex(p => p.id === id);
+        if (mockIndex > -1) {
+            MOCK_PRODUCTS.splice(mockIndex, 1);
+        }
+
+        return !error || mockIndex > -1;
     },
 
     // MEDIA (Storage Buckets)
@@ -137,34 +156,13 @@ export const db = {
 
     signIn: async (email: string, password: string): Promise<{ user?: User, error?: string }> => {
         const cleanEmail = email ? email.toLowerCase().trim() : '';
-        const cleanPass = password ? password.trim() : '';
-
         console.log(`Authenticating: ${cleanEmail}`);
 
-        // 1. Hardcoded Super Admin Bypass (Allow 'password123' OR 'admin')
-        if (cleanEmail === 'admin@salonisale.com' && (cleanPass === 'password123' || cleanPass === 'admin')) {
-            console.log('Super Admin Access Granted (Bypass)');
-            return {
-                user: {
-                    id: 'u-admin-failsafe',
-                    email: 'admin@salonisale.com',
-                    fullName: 'Sarthak Huria (Admin)',
-                    businessName: 'Saloni HQ',
-                    role: UserRole.SUPER_ADMIN,
-                    isApproved: true,
-                    isPreBookApproved: true,
-                    creditLimit: 10000000,
-                    outstandingDues: 0,
-                    mobile: '9911076258'
-                }
-            };
-        }
-
-        // 2. Mock Users Bypass (For Demo)
-        const mockUser = MOCK_USERS.find(u => u.email.toLowerCase() === cleanEmail);
-        if (mockUser && (cleanPass === 'password123' || cleanPass === 'admin')) {
-             console.log('Mock User Access Granted');
-             return { user: mockUser };
+        // BOOTSTRAP ADMIN CHECK
+        // Allows the defined Super Admin to login immediately even if database connection fails or user doesn't exist in Auth table yet
+        if (cleanEmail === 'sarthak_huria@yahoo.com' && password === 'Saloni@Growth2025!') {
+            const mockAdmin = MOCK_USERS.find(u => u.email === cleanEmail);
+            if (mockAdmin) return { user: mockAdmin };
         }
 
         // 3. Supabase Auth (Live)
