@@ -40,7 +40,7 @@ export const DesignStudio: React.FC = () => {
 
                 try {
                     // Initialize AI client right before the call to ensure latest key
-                    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+                    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
                     const modelName = isHighRes ? 'gemini-3-pro-image-preview' : 'gemini-2.5-flash-image';
                     
                     const result = await ai.models.generateContent({
