@@ -137,7 +137,7 @@ export const QuickOrder: React.FC = () => {
         setIsParsing(true);
 
         try {
-            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
             const response = await ai.models.generateContent({
                 model: "gemini-3-flash-preview",
                 contents: `Analyze this raw text and extract B2B fashion order details (SKU/name, color, size, and quantity in sets). Text: "${pasteText}"`,
