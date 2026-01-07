@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { Button } from '../../components/Button';
@@ -39,8 +38,8 @@ export const DesignStudio: React.FC = () => {
                 }
 
                 try {
-                    // Ensure apiKey is a string, defaulting to empty if undefined
-                    const apiKey = process.env.API_KEY || '';
+                    // FIX: Explicitly cast env var to string to satisfy TypeScript strict checks
+                    const apiKey = (process.env.API_KEY as string) || '';
                     const ai = new GoogleGenAI({ apiKey });
                     const modelName = isHighRes ? 'gemini-3-pro-image-preview' : 'gemini-2.5-flash-image';
                     
