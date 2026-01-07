@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { GoogleGenAI, Chat, GenerateContentResponse } from "@google/genai";
 import { useApp } from '../context/AppContext';
@@ -27,7 +26,9 @@ export const AIChatbot: React.FC = () => {
     }, [messages, isTyping]);
 
     const initializeChat = async () => {
-        if (!process.env.API_KEY) return;
+        // Fallback key strategy
+        const apiKey = (process.env.API_KEY as string) || 'AIzaSyCZl9mLD6Jt7Pb6xSLRsdGU9VTop-7HesA';
+        if (!apiKey) return;
 
         const productContext = (products || []).slice(0, 50).map(p => 
             `- ${p.name} (${p.category}): ₹${p.basePrice}, Status: ${p.isAvailable ? 'In Stock' : 'Out of Stock'}`
@@ -42,7 +43,7 @@ export const AIChatbot: React.FC = () => {
         `;
 
         try {
-            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+            const ai = new GoogleGenAI({ apiKey });
             chatSessionRef.current = ai.chats.create({
                 model: 'gemini-3-flash-preview',
                 config: { systemInstruction }
@@ -53,10 +54,10 @@ export const AIChatbot: React.FC = () => {
     };
 
     useEffect(() => {
-        if (isOpen && (!chatSessionRef.current || !process.env.API_KEY)) {
+        if (isOpen && (!chatSessionRef.current)) {
             initializeChat();
         }
-    }, [isOpen, products, process.env.API_KEY]);
+    }, [isOpen, products]);
 
     const handleSend = async (e?: React.FormEvent) => {
         e?.preventDefault();
@@ -76,7 +77,7 @@ export const AIChatbot: React.FC = () => {
         setIsTyping(true);
 
         try {
-            const resultStream = await chatSessionRef.current.sendMessageStream({ message: userMsg });
+            const resultStream = await chatSessionRef.current!.sendMessageStream({ message: userMsg });
             
             let fullResponse = '';
             setMessages(prev => [...prev, { role: 'model', text: '' }]);

@@ -1,8 +1,25 @@
 
 // Service to handle GST Verification - LIVE MODE
 
-const meta = import.meta as any;
-const env = meta.env || {};
+const getEnv = () => {
+    try {
+        // @ts-ignore
+        if (typeof import.meta !== 'undefined' && import.meta.env) {
+            // @ts-ignore
+            return import.meta.env;
+        }
+    } catch(e) {}
+    
+    try {
+        if (typeof process !== 'undefined' && process.env) {
+            return process.env;
+        }
+    } catch(e) {}
+
+    return {};
+};
+
+const env = getEnv();
 
 // Configure keys in .env
 const getApiKey = () => localStorage.getItem('SALONI_GST_API_KEY') || env.VITE_GST_API_KEY || '';
