@@ -103,7 +103,7 @@ export const AgentDashboard: React.FC = () => {
     const generateBeatPlan = async () => {
         setIsGeneratingPlan(true);
         try {
-            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
             
             const clientContext = myClients.map(c => {
                 const lastOrder = orders.find(o => o.userId === c.id);

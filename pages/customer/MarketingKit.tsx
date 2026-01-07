@@ -53,7 +53,7 @@ export const MarketingKit: React.FC = () => {
     const handleGenerate = async () => {
         setIsGenerating(true);
         try {
-            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
             
             const prompt = `
                 You are a social media marketing expert for a kids' clothing boutique. 

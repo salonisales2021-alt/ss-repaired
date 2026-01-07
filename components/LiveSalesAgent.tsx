@@ -158,7 +158,7 @@ export const LiveSalesAgent: React.FC = () => {
       setIsActive(true);
       setStatus('connecting');
 
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
       
       const stream = await navigator.mediaDevices.getUserMedia({ audio: {
         sampleRate: 16000,

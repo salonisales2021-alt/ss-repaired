@@ -34,7 +34,7 @@ export const BulkOnboarding: React.FC = () => {
         const newDrafts: DraftProduct[] = [];
 
         try {
-            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
             
             for (const file of files) {
                 try {

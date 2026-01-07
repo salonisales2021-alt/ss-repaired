@@ -24,7 +24,7 @@ const RestockRecommender: React.FC = () => {
         
         setLoading(true);
         try {
-            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
             const inventoryContext = products.map(p => ({
                 id: p.id,
                 name: p.name,

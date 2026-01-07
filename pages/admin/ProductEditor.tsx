@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Button } from '../../components/Button';
 import { Input } from '../../components/Input';
@@ -58,7 +59,7 @@ export const ProductEditor: React.FC = () => {
         if (!name || !category || !fabric) { toast("Provide Name, Category, and Fabric first.", "warning"); return; }
         setLoading(true);
         try {
-            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
             const response = await ai.models.generateContent({
                 model: 'gemini-3-flash-preview',
                 contents: `Write a high-end B2B fashion description for: ${name}, Category: ${category}, Fabric: ${fabric}. Focus on quality and wholesale appeal.`,
@@ -83,7 +84,7 @@ export const ProductEditor: React.FC = () => {
                 const reader = new FileReader(); reader.onloadend = () => resolve(reader.result?.toString().split(',')[1] || ""); reader.readAsDataURL(imageBlob);
             });
             
-            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
             let operation = await ai.models.generateVideos({
                 model: 'veo-3.1-fast-generate-preview',
                 prompt: aiPrompt,

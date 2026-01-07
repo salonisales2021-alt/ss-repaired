@@ -42,7 +42,7 @@ export const SmartStocker: React.FC = () => {
         setStrategy('');
 
         try {
-            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
 
             // 1. Prepare Product Context (Simplified to save tokens)
             // We send ID, Name, Category, Fabric, Base Price, and Available Variants

@@ -28,7 +28,7 @@ export const DistributorFinder: React.FC = () => {
         setAnalysis(null);
 
         try {
-            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
             
             // Using gemini-2.5-flash for maps grounding
             const response = await ai.models.generateContent({

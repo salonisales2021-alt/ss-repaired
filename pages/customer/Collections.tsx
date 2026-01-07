@@ -46,7 +46,7 @@ export const Collections: React.FC = () => {
         setMatchedProducts([]);
 
         try {
-            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
             
             // Build context for AI to map styles
             const catalogSummary = products.map(p => ({

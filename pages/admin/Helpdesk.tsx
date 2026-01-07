@@ -54,7 +54,7 @@ export const Helpdesk: React.FC = () => {
         setSummary(null);
 
         try {
-            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
             const chatHistory = selectedTicket.messages.map(m => `${m.senderName}: ${m.message}`).join('\n');
             
             const response = await ai.models.generateContent({

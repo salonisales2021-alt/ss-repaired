@@ -42,7 +42,7 @@ export const AIChatbot: React.FC = () => {
         `;
 
         try {
-            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
             chatSessionRef.current = ai.chats.create({
                 model: 'gemini-3-flash-preview',
                 config: { systemInstruction }

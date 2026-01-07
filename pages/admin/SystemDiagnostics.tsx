@@ -58,7 +58,7 @@ export const SystemDiagnostics: React.FC = () => {
         }]);
 
         try {
-            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
             const result = await fn(ai);
             const endTime = performance.now();
             const latency = Math.round(endTime - startTime);

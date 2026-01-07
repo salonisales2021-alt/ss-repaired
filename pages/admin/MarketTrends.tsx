@@ -19,7 +19,7 @@ export const MarketTrends: React.FC = () => {
         setSources([]);
 
         try {
-            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
             
             // Using gemini-3-flash-preview for high-performance search grounding
             const response = await ai.models.generateContent({

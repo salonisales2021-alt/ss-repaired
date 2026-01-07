@@ -58,7 +58,7 @@ export const CatalogNarrator: React.FC<{ category?: string }> = ({ category }) =
 
         setIsNarrating(true);
         try {
-            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
             
             const filteredProducts = category && category !== 'All' 
                 ? products.filter(p => p.category === category)

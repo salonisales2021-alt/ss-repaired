@@ -82,7 +82,7 @@ export const CustomerNavbar: React.FC = () => {
     if (!isSkuLike) {
         setIsSemanticSearching(true);
         try {
-            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
             
             const prompt = `You are a smart search assistant for a B2B Kids Clothing App (Saloni Sales).
             User Query: "${searchTerm}"
@@ -155,7 +155,7 @@ export const CustomerNavbar: React.FC = () => {
           const base64data = reader.result?.toString().split(',')[1];
           if (!base64data) return;
           try {
-              const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+              const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
               const response = await ai.models.generateContent({
                   model: 'gemini-2.5-flash',
                   contents: [
@@ -196,7 +196,7 @@ export const CustomerNavbar: React.FC = () => {
                     onClick={() => setIsMenuOpen(true)} 
                     className="p-2 -ml-2 text-luxury-black hover:text-rani-600 transition-colors focus:outline-none focus:ring-2 focus:ring-rani-500 rounded-lg"
                     aria-label="Open Menu"
-                    aria-expanded={isMenuOpen}
+                    aria-expanded={isMenuOpen ? "true" : "false"}
                 >
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
@@ -330,92 +330,63 @@ export const CustomerNavbar: React.FC = () => {
                       <ul className="space-y-1">
                           <SidebarItem to="/" label="Home" icon={<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>} />
                           <SidebarItem to="/shop" label="Shop Collection" icon={<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" /></svg>} />
-                          {user?.isPreBookApproved && (
-                              <SidebarItem 
-                                  to="/pre-book" 
-                                  label="Pre-Book Club" 
-                                  className="bg-gray-900 text-gold-400 hover:bg-black hover:text-gold-300 border border-gold-600/30"
-                                  icon={<span className="text-xl">💎</span>}
-                                  badge="EXCLUSIVE"
-                              />
-                          )}
-                          <SidebarItem to="/collections" label="Lookbooks & Scout" icon={<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>} />
+                          <SidebarItem to="/pre-book" label="Pre-Book Club" icon={<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>} badge="Exclusive" className="bg-gold-50 text-gold-800 hover:bg-gold-100 hover:text-gold-900 border border-gold-200" />
+                          <SidebarItem to="/quick-order" label="Quick Order" icon={<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>} />
+                          <SidebarItem to="/collections" label="Visual Scout (AI)" icon={<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>} />
+                          <SidebarItem to="/saloni-tv" label="Saloni TV" icon={<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>} />
                       </ul>
                   </div>
 
-                  {/* Section: Business (Only if logged in) */}
-                  {user && (
-                      <div>
-                          <p className="px-4 text-[10px] font-black uppercase tracking-widest text-gray-400 mb-3">My Business</p>
-                          <ul className="space-y-1">
-                              <SidebarItem to="/cart" label="Cart" badge={cart.length > 0 ? cart.length : ''} icon={<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" /></svg>} />
-                              <SidebarItem to="/orders" label="Orders & Returns" icon={<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>} />
-                              <SidebarItem to="/ledger" label="Financial Ledger" icon={<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>} />
-                              <SidebarItem to="/wishlist" label="Wishlist" icon={<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" /></svg>} />
-                              {user.role !== 'RETAILER' && (
-                                  <SidebarItem to="/agent/dashboard" label="Partner Dashboard" icon={<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>} />
-                              )}
-                          </ul>
-                      </div>
-                  )}
-
-                  {/* Section: Intelligence */}
-                  {user && (
-                      <div>
-                          <p className="px-4 text-[10px] font-black uppercase tracking-widest text-gray-400 mb-3">AI Tools</p>
-                          <ul className="space-y-1">
-                              <SidebarItem to="/smart-stocker" label="Smart Stocker" icon={<span className="text-lg">🧠</span>} />
-                              <SidebarItem to="/design-studio" label="Custom Studio" icon={<span className="text-lg">✨</span>} />
-                              <SidebarItem to="/saloni-tv" label="Saloni TV" icon={<span className="text-lg">📺</span>} />
-                          </ul>
-                      </div>
-                  )}
-
-                  {/* Section: Utility */}
+                  {/* Section: Account */}
                   <div>
-                      <p className="px-4 text-[10px] font-black uppercase tracking-widest text-gray-400 mb-3">Support & Settings</p>
+                      <p className="px-4 text-[10px] font-black uppercase tracking-widest text-gray-400 mb-3">My Business</p>
                       <ul className="space-y-1">
-                          <SidebarItem to="/distributors" label="Locate Distributors" icon={<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>} />
+                          <SidebarItem to="/orders" label="Order History" icon={<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>} />
+                          <SidebarItem to="/ledger" label="Financial Ledger" icon={<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>} />
+                          <SidebarItem to="/wishlist" label="Wishlist" icon={<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" /></svg>} />
+                          <SidebarItem to="/marketing-kit" label="Reseller Kit" icon={<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>} />
+                          <SidebarItem to="/design-studio" label="Design Studio" icon={<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" /></svg>} />
+                          <SidebarItem to="/smart-stocker" label="AI Smart Stocker" icon={<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>} />
+                      </ul>
+                  </div>
+
+                  {/* Section: Support */}
+                  <div>
+                      <p className="px-4 text-[10px] font-black uppercase tracking-widest text-gray-400 mb-3">Support</p>
+                      <ul className="space-y-1">
+                          <SidebarItem to="/book-visit" label="Book Visit" icon={<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>} />
                           <SidebarItem to="/support" label="Helpdesk" icon={<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z" /></svg>} />
-                          <li>
-                              <button 
-                                onClick={() => setTutorialOpen(true)}
-                                className="flex w-full items-center gap-4 px-4 py-3 text-gray-700 hover:bg-rani-50 hover:text-rani-700 rounded-xl transition-all duration-200 group text-left font-medium"
-                              >
-                                  <span className="text-gray-400 group-hover:text-rani-500 transition-colors">
-                                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                                  </span>
-                                  <span className="flex-1">App Tutorial</span>
-                              </button>
+                          <SidebarItem to="/distributors" label="Partner Finder" icon={<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>} />
+                      </ul>
+                  </div>
+
+                  {/* Section: Settings & Tools */}
+                  <div className="border-t border-gray-100 pt-4">
+                      <ul className="space-y-1">
+                          <SidebarItem to="/profile" label="Settings" icon={<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065zM15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>} onClick={() => setIsMenuOpen(false)} />
+                          
+                          <li onClick={() => { setLanguage(language === 'en' ? 'hi' : 'en'); setIsMenuOpen(false); }} className="flex items-center gap-4 px-4 py-3 text-gray-700 hover:bg-gray-50 rounded-xl cursor-pointer">
+                              <span className="text-gray-400">🌐</span>
+                              <span className="flex-1">Language</span>
+                              <span className="text-xs font-bold bg-gray-200 px-2 py-1 rounded text-gray-600">{language === 'en' ? 'English' : 'हिंदी'}</span>
                           </li>
+
+                          <li onClick={() => { setTutorialOpen(true); setIsMenuOpen(false); }} className="flex items-center gap-4 px-4 py-3 text-gray-700 hover:bg-gray-50 rounded-xl cursor-pointer">
+                              <span className="text-gray-400">🎓</span>
+                              <span>Play Tutorial</span>
+                          </li>
+
+                          {user && (
+                              <li onClick={() => { logout(); setIsMenuOpen(false); }} className="flex items-center gap-4 px-4 py-3 text-red-600 hover:bg-red-50 rounded-xl cursor-pointer mt-4">
+                                  <span>🚪</span>
+                                  <span className="font-bold">Sign Out</span>
+                              </li>
+                          )}
                       </ul>
                   </div>
               </nav>
-
-              {/* Sidebar Footer */}
-              <div className="p-4 border-t border-gray-200 bg-gray-50 shrink-0 space-y-3">
-                  <button onClick={() => setLanguage(language === 'en' ? 'hi' : 'en')} className="w-full flex items-center justify-between px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-700 hover:border-rani-300 transition-colors shadow-sm">
-                      <span className="flex items-center gap-2">
-                          <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" /></svg>
-                          Language
-                      </span>
-                      <span className="text-rani-600 bg-rani-50 px-2 py-0.5 rounded text-xs">{language === 'en' ? 'English' : 'हिंदी'}</span>
-                  </button>
-                  
-                  {user ? (
-                      <button onClick={logout} className="w-full flex items-center justify-center gap-3 px-4 py-3 text-red-600 hover:bg-red-50 rounded-xl transition-colors font-bold text-sm border border-transparent hover:border-red-100">
-                          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
-                          Sign Out
-                      </button>
-                  ) : (
-                      <Link to="/login" className="flex items-center justify-center w-full px-4 py-4 bg-luxury-black text-white rounded-xl font-bold text-sm hover:bg-gray-800 transition-colors uppercase tracking-wide shadow-lg">
-                          Sign In Now
-                      </Link>
-                  )}
-              </div>
           </aside>
       </div>
-    </header>
     </>
   );
 };

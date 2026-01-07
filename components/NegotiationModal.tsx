@@ -34,7 +34,7 @@ export const NegotiationModal: React.FC<NegotiationModalProps> = ({ cartTotal, o
     setLoading(true);
 
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
       const prompt = `You are a B2B sales manager for Saloni Sales. A retailer wants to negotiate a discount on their cart of ₹${cartTotal}.
       History: ${JSON.stringify(messages)}
       Latest Request: "${userText}"
