@@ -1,11 +1,12 @@
 import { createClient } from '@supabase/supabase-js';
 
 /**
- * Supabase Client Initialization - LIVE MODE
- * Using credentials provided for the Saloni Sales project.
+ * Supabase Client Initialization
+ * Handles connection to the backend database.
+ * gracefully falls back if keys are missing.
  */
 
-// Access environment variables safely for Vite and other environments
+// Access environment variables safely
 const getEnv = (key: string) => {
   try {
     // @ts-ignore
@@ -13,9 +14,7 @@ const getEnv = (key: string) => {
       // @ts-ignore
       return import.meta.env[key];
     }
-  } catch (e) {
-    // Ignore error
-  }
+  } catch (e) {}
 
   try {
     // @ts-ignore
@@ -23,18 +22,31 @@ const getEnv = (key: string) => {
       // @ts-ignore
       return process.env[key];
     }
-  } catch (e) {
-    // Ignore error
-  }
+  } catch (e) {}
   
   return undefined;
 };
 
-// Credentials provided
-const SUPABASE_URL = (getEnv('VITE_SUPABASE_URL') as string) || 'https://tikuoenvshrrweahpvpb.supabase.co';
-const SUPABASE_ANON_KEY = (getEnv('VITE_SUPABASE_ANON_KEY') as string) || 'Zd_EX3qj2ViINN0gFdx1hzqeMRs5ygLqQb3EBfONvAo';
+// Retrieve Credentials
+const SUPABASE_URL = (getEnv('VITE_SUPABASE_URL') as string) || '';
+const SUPABASE_ANON_KEY = (getEnv('VITE_SUPABASE_ANON_KEY') as string) || '';
 
-console.log("%c LIVE DATABASE CONNECTED ", "background: #10B981; color: white; font-weight: bold; padding: 2px 5px; border-radius: 3px;");
+// Validate Credentials (JWTs are typically long)
+export const isLiveData = !!(SUPABASE_URL && SUPABASE_ANON_KEY && SUPABASE_ANON_KEY.length > 40);
 
-export const isLiveData = true;
-export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+if (isLiveData) {
+    console.log("%c LIVE DATABASE CONNECTED ", "background: #10B981; color: white; font-weight: bold; padding: 2px 5px; border-radius: 3px;");
+} else {
+    console.warn("%c MOCK MODE ACTIVE - DB CREDENTIALS MISSING ", "background: #F59E0B; color: black; font-weight: bold; padding: 2px 5px; border-radius: 3px;");
+}
+
+export const supabase = createClient(
+    isLiveData ? SUPABASE_URL : 'https://placeholder.supabase.co', 
+    isLiveData ? SUPABASE_ANON_KEY : 'placeholder',
+    {
+        auth: {
+            persistSession: isLiveData,
+            autoRefreshToken: isLiveData,
+        }
+    }
+);

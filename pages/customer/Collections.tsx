@@ -45,7 +45,12 @@ export const Collections: React.FC = () => {
         setMatchedProducts([]);
 
         try {
-            const apiKey = (process.env.API_KEY as string) || 'AIzaSyCZl9mLD6Jt7Pb6xSLRsdGU9VTop-7HesA';
+            const apiKey = process.env.API_KEY;
+            if (!apiKey) {
+                alert("API Key missing. Visual Search unavailable.");
+                setIsAnalyzing(false);
+                return;
+            }
             const ai = new GoogleGenAI({ apiKey });
             
             // Build context for AI to map styles

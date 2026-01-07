@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Button } from '../components/Button';
@@ -170,7 +169,10 @@ export const Register: React.FC = () => {
                                 { role: UserRole.RETAILER, title: 'Retailer', desc: 'Buy to stock shop' },
                                 { role: UserRole.LOCAL_TRADER, title: 'Local Trader', desc: 'Stock & Local Supply' },
                                 { role: UserRole.DISTRIBUTOR, title: 'Distributor', desc: 'Strict Bulk Distribution' },
-                                { role: UserRole.SUPER_ADMIN, title: 'Super Admin', desc: 'Full System Control' }
+                                { role: UserRole.GADDI, title: 'Gaddi (Buying House)', desc: 'Financial & Logistics Hub' },
+                                { role: UserRole.AGENT, title: 'Agent', desc: 'Contact & Contract Providers' },
+                                { role: UserRole.CORPORATE, title: 'Corporate / Chainstore', desc: 'Multi-Location Retailers' },
+                                { role: UserRole.INTERNATIONAL, title: 'International Client', desc: 'Import / Export' }
                             ].map(item => (
                                 <div 
                                     key={item.role}

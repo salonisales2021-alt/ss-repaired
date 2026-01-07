@@ -1,15 +1,13 @@
-
 import React from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Button } from '../../components/Button';
-import { MOCK_PRODUCTS } from '../../services/mockData';
 import { useApp } from '../../context/AppContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { LockScreen } from '../../components/LockScreen';
 
 export const CustomerHome: React.FC = () => {
   const navigate = useNavigate();
-  const { user, heroVideoUrl } = useApp();
+  const { user, heroVideoUrl, products } = useApp();
   const { t } = useLanguage();
 
   return (
@@ -213,7 +211,7 @@ export const CustomerHome: React.FC = () => {
             </div>
         ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-                {MOCK_PRODUCTS.slice(0, 4).map(product => (
+                {products.slice(0, 4).map(product => (
                     <div 
                         key={product.id} 
                         className="bg-white border border-gray-100 hover:border-rani-200 hover:shadow-2xl transition-all duration-500 rounded-xl group cursor-pointer overflow-hidden flex flex-col"

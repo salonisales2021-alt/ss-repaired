@@ -41,7 +41,12 @@ export const SmartStocker: React.FC = () => {
         setStrategy('');
 
         try {
-            const apiKey = (process.env.API_KEY as string) || 'AIzaSyCZl9mLD6Jt7Pb6xSLRsdGU9VTop-7HesA';
+            const apiKey = process.env.API_KEY;
+            if (!apiKey) {
+                alert("API Key is missing. AI features disabled.");
+                setIsGenerating(false);
+                return;
+            }
             const ai = new GoogleGenAI({ apiKey });
 
             // 1. Prepare Product Context (Simplified to save tokens)

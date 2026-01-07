@@ -26,9 +26,11 @@ export const AIChatbot: React.FC = () => {
     }, [messages, isTyping]);
 
     const initializeChat = async () => {
-        // Fallback key strategy
-        const apiKey = (process.env.API_KEY as string) || 'AIzaSyCZl9mLD6Jt7Pb6xSLRsdGU9VTop-7HesA';
-        if (!apiKey) return;
+        const apiKey = process.env.API_KEY;
+        if (!apiKey) {
+            console.warn("AI Chatbot: API Key is missing.");
+            return;
+        }
 
         const productContext = (products || []).slice(0, 50).map(p => 
             `- ${p.name} (${p.category}): ₹${p.basePrice}, Status: ${p.isAvailable ? 'In Stock' : 'Out of Stock'}`
@@ -66,7 +68,7 @@ export const AIChatbot: React.FC = () => {
         if (!chatSessionRef.current) {
             await initializeChat();
             if (!chatSessionRef.current) {
-                alert("AI initialization failed. Please ensure your API key is selected.");
+                setMessages(prev => [...prev, { role: 'model', text: "System: API Key missing. Please configure 'API_KEY' in your environment variables." }]);
                 return;
             }
         }

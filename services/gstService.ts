@@ -72,7 +72,8 @@ export const verifyGST = async (gstin: string): Promise<GSTDetails> => {
   const apiUrl = getApiUrl();
 
   if (!apiKey) {
-      throw new Error("Live GST API Key is missing. Please configure VITE_GST_API_KEY.");
+      // STRICT MODE: No mock fallback allowed
+      throw new Error("Live GST API Key is missing. Verification service unavailable.");
   }
 
   try {

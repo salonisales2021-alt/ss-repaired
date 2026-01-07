@@ -7,7 +7,9 @@ export enum UserRole {
   AGENT = 'AGENT',               // Sales & Field Collection
   ADMIN = 'ADMIN',
   SUPER_ADMIN = 'SUPER_ADMIN',
-  DISPATCH = 'DISPATCH'          // Dispatch Department
+  DISPATCH = 'DISPATCH',          // Dispatch Department
+  CORPORATE = 'CORPORATE',        // Multi-location / Chainstores
+  INTERNATIONAL = 'INTERNATIONAL' // Import/Export Clients
 }
 
 export enum ProductCategory {

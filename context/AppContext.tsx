@@ -1,8 +1,6 @@
-
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User, CartItem, ProductVariant, Product, Notification, UserRole } from '../types';
 import { db } from '../services/db';
-import { MOCK_NOTIFICATIONS } from '../services/mockData';
 import { isBiometricSupported, registerBiometric, verifyBiometric } from '../services/biometricService';
 
 interface AppContextType {
@@ -45,12 +43,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [users, setUsers] = useState<User[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [heroVideoUrl, setHeroVideoUrl] = useState<string | null>(null);
-  // Default to null, do not read from localStorage to enforce fresh session
   const [user, setUser] = useState<User | null>(null);
   const [selectedClient, setSelectedClient] = useState<User | null>(null);
-  // Default to empty array, do not read from localStorage
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [allNotifications, setAllNotifications] = useState<Notification[]>(MOCK_NOTIFICATIONS);
+  const [allNotifications, setAllNotifications] = useState<Notification[]>([]); // Empty initial state
   const [isTutorialOpen, setTutorialOpen] = useState(false);
   const [isBiometricAvailable, setIsBiometricAvailable] = useState(false);
 
@@ -60,7 +56,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         const fetchedProducts = await db.getProducts();
         setProducts(fetchedProducts);
         
-        // Reverted: Loading all users regardless of role to ensure functionality
         const fetchedUsers = await db.getUsers();
         setUsers(fetchedUsers);
     };
@@ -146,14 +141,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (roleType === 'ADMIN') {
         if (safeUser.role === UserRole.ADMIN || safeUser.role === UserRole.SUPER_ADMIN || safeUser.role === UserRole.DISPATCH) {
             setUser(safeUser);
-            // We are NOT persisting to localStorage based on request
             return { success: true };
         }
         return { success: false, error: "ACCESS_DENIED: User is not an Administrator." };
     } else {
         if (!safeUser.isApproved) return { success: false, error: "PENDING_APPROVAL" };
         setUser(safeUser);
-        // We are NOT persisting to localStorage based on request
         return { success: true };
     }
   };

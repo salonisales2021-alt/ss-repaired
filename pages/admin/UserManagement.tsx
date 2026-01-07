@@ -1,11 +1,9 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
 import { Button } from '../../components/Button';
 import { Input } from '../../components/Input';
 import { UserRole, User } from '../../types';
 import { db, parseAIJson } from '../../services/db';
-import { MOCK_AGENTS } from '../../services/mockData';
 import { GoogleGenAI, Type } from "@google/genai";
 import { useToast } from '../../components/Toaster';
 
@@ -38,7 +36,10 @@ export const UserManagement: React.FC = () => {
     });
 
     const isSuperAdmin = currentUser?.role === UserRole.SUPER_ADMIN;
+    
+    // Live Partner Filters
     const gaddiPartners = useMemo(() => users.filter(u => u.role === UserRole.GADDI), [users]);
+    const agentPartners = useMemo(() => users.filter(u => u.role === UserRole.AGENT), [users]);
 
     const analyzeCreditHealth = async () => {
         setIsAnalyzing(true);
@@ -379,8 +380,8 @@ export const UserManagement: React.FC = () => {
                                                 onChange={e => setSelectedUser({...selectedUser, assignedAgentId: e.target.value})}
                                             >
                                                 <option value="">-- Direct Sale / No Agent --</option>
-                                                {MOCK_AGENTS.map(agent => (
-                                                    <option key={agent.id} value={agent.id}>{agent.name}</option>
+                                                {agentPartners.map(agent => (
+                                                    <option key={agent.id} value={agent.id}>{agent.fullName}</option>
                                                 ))}
                                             </select>
                                         </div>

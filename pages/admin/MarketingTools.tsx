@@ -40,7 +40,10 @@ export const MarketingTools: React.FC = () => {
                 try {
                     setProgress('Initializing AI Video Engine (Veo)...');
                     // Ensure key exists
-                    const apiKey = (process.env.API_KEY as string) || 'AIzaSyCZl9mLD6Jt7Pb6xSLRsdGU9VTop-7HesA';
+                    const apiKey = process.env.API_KEY;
+                    if (!apiKey) {
+                        throw new Error("API Key is missing. Please select a key via the AI Studio button or configure env vars.");
+                    }
                     const ai = new GoogleGenAI({ apiKey });
                     const fullPrompt = `${promptModifier}. Character is wearing: ${selectedProduct.name}. Fabric texture: ${selectedProduct.fabric}. Focus on fluid dress movement.`;
 
