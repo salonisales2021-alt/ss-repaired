@@ -126,6 +126,7 @@ export interface Order {
     method: PaymentCategory;
     entityId?: string;
     entityName?: string;
+    transactionId?: string; // Added for Razorpay or Ext Ref
   };
   documents?: OrderDocuments;
   transport?: TransportDetails;

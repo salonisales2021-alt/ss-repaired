@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Button } from '../../components/Button';
 import { Input } from '../../components/Input';
@@ -7,10 +8,15 @@ export const AdminSettings: React.FC = () => {
     const { toast } = useToast();
     const [gstKey, setGstKey] = useState(localStorage.getItem('SALONI_GST_API_KEY') || '');
     const [gstUrl, setGstUrl] = useState(localStorage.getItem('SALONI_GST_API_URL') || '');
+    // PRE-CONFIGURED LIVE KEY
+    const [razorpayKey, setRazorpayKey] = useState(localStorage.getItem('SALONI_RAZORPAY_KEY_ID') || 'rzp_live_S0uWvTrQbQVu8b');
+    const [razorpayHandle, setRazorpayHandle] = useState(localStorage.getItem('SALONI_RAZORPAY_HANDLE') || '@saloni1390');
 
     const handleSaveConfig = () => {
         localStorage.setItem('SALONI_GST_API_KEY', gstKey);
         localStorage.setItem('SALONI_GST_API_URL', gstUrl);
+        localStorage.setItem('SALONI_RAZORPAY_KEY_ID', razorpayKey);
+        localStorage.setItem('SALONI_RAZORPAY_HANDLE', razorpayHandle);
         toast("System configuration updated successfully.", "success");
     };
 
@@ -34,6 +40,46 @@ export const AdminSettings: React.FC = () => {
                     <section className="bg-gray-50/50 -mx-8 px-8 py-8 border-y border-gray-100">
                         <h3 className="text-sm font-black text-gray-400 uppercase tracking-[0.2em] mb-6">External Integrations</h3>
                         <div className="space-y-6">
+                            
+                            <div className="bg-white p-6 rounded-xl border border-gray-200">
+                                <h4 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
+                                    💳 Payment Gateway (Razorpay)
+                                </h4>
+                                <div className="grid grid-cols-1 gap-6">
+                                    <div>
+                                        <Input 
+                                            label="Live Key ID (Public)" 
+                                            placeholder="rzp_live_xxxxxxxx"
+                                            value={razorpayKey}
+                                            onChange={(e) => setRazorpayKey(e.target.value)}
+                                            className="font-mono text-sm"
+                                        />
+                                        <p className="text-xs text-gray-500 italic mt-1">
+                                            This key enables the payment popup. <strong>Note:</strong> Key Secret is NOT required here for security reasons.
+                                        </p>
+                                    </div>
+                                    
+                                    <div className="relative flex items-center py-2">
+                                        <div className="grow border-t border-gray-200"></div>
+                                        <span className="shrink-0 mx-4 text-gray-400 text-xs font-bold uppercase">OR</span>
+                                        <div className="grow border-t border-gray-200"></div>
+                                    </div>
+
+                                    <div>
+                                        <Input 
+                                            label="Payment Page Handle (Fallback)" 
+                                            placeholder="@yourhandle"
+                                            value={razorpayHandle}
+                                            onChange={(e) => setRazorpayHandle(e.target.value)}
+                                            className="font-mono text-sm"
+                                        />
+                                        <p className="text-xs text-gray-500 italic mt-1">
+                                            Redirects to: <strong>razorpay.me/{razorpayHandle}</strong> if popup fails.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+
                             <div className="bg-white p-6 rounded-xl border border-gray-200">
                                 <h4 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
                                     🏛️ Real-time GST Verification
