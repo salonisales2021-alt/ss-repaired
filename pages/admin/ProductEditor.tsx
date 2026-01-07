@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '../../components/Button';
 import { Input } from '../../components/Input';
@@ -38,7 +37,13 @@ export const ProductEditor: React.FC = () => {
         setEditId(product.id); setName(product.name); setSku(product.sku); setDesc(product.description);
         setCategory(product.category); setFabric(product.fabric); setBasePrice(product.basePrice.toString());
         setIsAvailable(product.isAvailable); setImages(product.images); setVideo(product.video || '');
-        setVariants(product.variants.length > 0 ? product.variants : [{ id: `v-${Date.now()}`, sizeRange: '', color: '', pricePerPiece: Number(product.basePrice), piecesPerSet: 6, stock: 0 }]);
+        
+        // Auto-clubbing logic: Sort variants by Color then Size to keep them visually grouped
+        const sortedVariants = [...product.variants].sort((a, b) => 
+            a.color.localeCompare(b.color) || a.sizeRange.localeCompare(b.sizeRange)
+        );
+        
+        setVariants(sortedVariants.length > 0 ? sortedVariants : [{ id: `v-${Date.now()}`, sizeRange: '', color: '', pricePerPiece: Number(product.basePrice), piecesPerSet: 6, stock: 0 }]);
         setView('FORM');
     };
 
@@ -112,10 +117,17 @@ export const ProductEditor: React.FC = () => {
         if (!name || !sku || !basePrice) { toast("Fill in required fields.", "warning"); return; }
         setLoading(true);
         try {
+            // Auto-club variants before saving
+            // Sort by Color then by Size Range to keep them visually grouped in the database
+            const sortedVariants = [...variants].sort((a, b) => 
+                (a.color || '').localeCompare(b.color || '') || 
+                (a.sizeRange || '').localeCompare(b.sizeRange || '')
+            );
+
             await db.saveProduct({ 
                 id: editId || undefined, name, sku, description: desc, category, fabric, 
                 basePrice: Number(basePrice), images, video, 
-                variants: variants as ProductVariant[], isAvailable 
+                variants: sortedVariants as ProductVariant[], isAvailable 
             });
             toast("Product catalog updated.", "success"); 
             refreshProducts(); 
@@ -139,6 +151,33 @@ export const ProductEditor: React.FC = () => {
         } finally {
             setLoading(false);
         }
+    };
+
+    const updateVariant = (index: number, field: keyof ProductVariant, value: any) => {
+        const newVariants = [...variants];
+        newVariants[index] = { ...newVariants[index], [field]: value };
+        setVariants(newVariants);
+    };
+
+    const addVariant = () => {
+        setVariants([...variants, { id: `v-${Date.now()}`, sizeRange: '', color: '', pricePerPiece: Number(basePrice), piecesPerSet: 6, stock: 0 }]);
+    };
+
+    const removeVariant = (index: number) => {
+        if (variants.length <= 1) {
+            toast("At least one variant is required.", "warning");
+            return;
+        }
+        setVariants(variants.filter((_, i) => i !== index));
+    };
+
+    const duplicateVariant = (index: number) => {
+        const source = variants[index];
+        const newVar = { ...source, id: `v-${Date.now()}` };
+        const newVariants = [...variants];
+        newVariants.splice(index + 1, 0, newVar);
+        setVariants(newVariants);
+        toast("Variant duplicated. Update details as needed.", "info");
     };
 
     if (view === 'LIST') {
@@ -172,7 +211,7 @@ export const ProductEditor: React.FC = () => {
                                 <td className="p-5 font-black text-luxury-black">₹{p.basePrice.toLocaleString()}</td>
                                 <td className="p-5 text-right">
                                     <div className="flex justify-end gap-2">
-                                        <Button size="sm" variant="outline" onClick={() => startEdit(p)}>Manage</Button>
+                                        <Button size="sm" variant="outline" onClick={() => startEdit(p)}>Manage / Rectify</Button>
                                         <Button size="sm" variant="text" className="text-red-500 hover:bg-red-50 px-3" onClick={() => handleDelete(p.id)} title="Delete Product">
                                             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -194,13 +233,13 @@ export const ProductEditor: React.FC = () => {
                 <div className="flex items-center gap-3">
                     <div className="w-10 h-10 bg-rani-500 rounded-xl flex items-center justify-center text-white text-lg font-script font-bold shadow-md">S</div>
                     <div>
-                        <h2 className="text-xl font-bold text-gray-800 leading-tight">{editId ? 'Modify Design' : 'New Collection Entry'}</h2>
+                        <h2 className="text-xl font-bold text-gray-800 leading-tight">{editId ? 'Rectify Details' : 'New Collection Entry'}</h2>
                         <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{editId ? `Editing SKU: ${sku}` : 'Inventory Onboarding'}</p>
                     </div>
                 </div>
                 <div className="flex gap-2">
                     <Button variant="outline" onClick={() => setView('LIST')}>Discard</Button>
-                    <Button onClick={handleSave} disabled={loading || uploading || isGeneratingVideo} className="px-10 shadow-lg shadow-rani-500/10">Save Record</Button>
+                    <Button onClick={handleSave} disabled={loading || uploading || isGeneratingVideo} className="px-10 shadow-lg shadow-rani-500/10">Save & Publish</Button>
                 </div>
             </div>
 
@@ -295,21 +334,49 @@ export const ProductEditor: React.FC = () => {
                     <div className="space-y-6 animate-fade-in">
                         <div className="bg-orange-50 border border-orange-100 p-4 rounded-xl flex items-start gap-3 mb-6">
                             <span className="text-xl">💡</span>
-                            <p className="text-xs text-orange-800 leading-relaxed font-bold">
-                                B2B Reminder: These dresses are sold in lots. Ensure the "Pieces Per Set" matches your factory packaging (standard is 6 or 12).
-                            </p>
-                        </div>
-                        {variants.map((v, i) => (
-                            <div key={v.id} className="grid grid-cols-6 gap-4 p-6 bg-white border border-gray-100 rounded-2xl shadow-sm items-end relative group transition-all hover:shadow-md">
-                                <div className="col-span-2"><Input label="Color / Desc" value={v.color} onChange={e => setVariants(variants.map((x, idx) => i === idx ? {...x, color: e.target.value} : x))} placeholder="Pink Floral" /></div>
-                                <div><Input label="Size Range" value={v.sizeRange} onChange={e => setVariants(variants.map((x, idx) => i === idx ? {...x, sizeRange: e.target.value} : x))} placeholder="24-34" /></div>
-                                <div><Input label="Price/Pc" type="number" value={v.pricePerPiece} onChange={e => setVariants(variants.map((x, idx) => i === idx ? {...x, pricePerPiece: Number(e.target.value)} : x))} /></div>
-                                <div><Input label="Pcs/Set" type="number" value={v.piecesPerSet} onChange={e => setVariants(variants.map((x, idx) => i === idx ? {...x, piecesPerSet: Number(e.target.value)} : x))} /></div>
-                                <div><Input label="Stock (Sets)" type="number" value={v.stock} onChange={e => setVariants(variants.map((x, idx) => i === idx ? {...x, stock: Number(e.target.value)} : x))} /></div>
-                                <button onClick={() => setVariants(variants.filter((_, idx) => i !== idx))} className="absolute -top-2 -right-2 bg-gray-100 text-gray-400 w-6 h-6 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center hover:bg-red-500 hover:text-white shadow-sm">✕</button>
+                            <div className="text-xs text-orange-800 leading-relaxed">
+                                <p className="font-bold">Rectify & Manage Variants</p>
+                                Edit sizes, colors, and prices directly here. Use the "Copy" button to quickly duplicate a row (useful for adding same size in different color).
                             </div>
-                        ))}
-                        <Button variant="outline" fullWidth onClick={() => setVariants([...variants, { id: `v-${Date.now()}`, sizeRange: '', color: '', pricePerPiece: 0, piecesPerSet: 6, stock: 0 }])}>+ Add Variation Slot</Button>
+                        </div>
+                        
+                        <div className="grid gap-4">
+                            {variants.map((v, i) => (
+                                <div key={v.id} className="grid grid-cols-12 gap-3 p-4 bg-white border border-gray-100 rounded-xl shadow-sm items-end relative group transition-all hover:shadow-md hover:border-rani-200">
+                                    <div className="col-span-3">
+                                        <Input label="Color / Desc" value={v.color} onChange={e => updateVariant(i, 'color', e.target.value)} placeholder="Pink Floral" className="h-10 text-sm" />
+                                    </div>
+                                    <div className="col-span-3">
+                                        <Input label="Size Range" value={v.sizeRange} onChange={e => updateVariant(i, 'sizeRange', e.target.value)} placeholder="24-34" className="h-10 text-sm" />
+                                    </div>
+                                    <div className="col-span-2">
+                                        <Input label="Price/Pc" type="number" value={v.pricePerPiece} onChange={e => updateVariant(i, 'pricePerPiece', Number(e.target.value))} className="h-10 text-sm" />
+                                    </div>
+                                    <div className="col-span-2">
+                                        <Input label="Stock (Sets)" type="number" value={v.stock} onChange={e => updateVariant(i, 'stock', Number(e.target.value))} className="h-10 text-sm" />
+                                    </div>
+                                    
+                                    {/* Actions */}
+                                    <div className="col-span-2 flex justify-end gap-2 pb-1">
+                                        <button 
+                                            onClick={() => duplicateVariant(i)} 
+                                            className="text-blue-500 hover:bg-blue-50 p-2 rounded-lg transition-colors"
+                                            title="Duplicate Row"
+                                        >
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+                                        </button>
+                                        <button 
+                                            onClick={() => removeVariant(i)} 
+                                            className="text-red-500 hover:bg-red-50 p-2 rounded-lg transition-colors"
+                                            title="Delete Variant"
+                                        >
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                        <Button variant="outline" fullWidth onClick={addVariant}>+ Add Empty Variant Row</Button>
                     </div>
                 )}
 

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../../context/AppContext';
 import { Button } from '../../components/Button';
@@ -66,7 +65,6 @@ export const Inventory: React.FC = () => {
             );
             
             // Handle Category Change (Pre-Book Toggle)
-            // If turning OFF Pre-Book, revert to WESTERN (Default fallback) or keep original if not pre-book
             let newCategory = adjusting.p.category;
             if (isPreBook) {
                 newCategory = ProductCategory.PRE_BOOK;
@@ -95,7 +93,8 @@ export const Inventory: React.FC = () => {
 
             toast("Inventory updated successfully.", "success");
             setAdjusting(null);
-            refreshProducts();
+            // Small delay to ensure DB propagation before refresh
+            setTimeout(() => refreshProducts(), 500);
         } catch (err) {
             toast("Failed to update inventory.", "error");
         } finally {
@@ -109,49 +108,74 @@ export const Inventory: React.FC = () => {
         const val = Number(bulkUpdateValue);
         
         try {
-            // Find unique products containing the selected variants
-            const affectedProductIds = new Set<string>();
-            selectedItems.forEach(vid => {
-                const p = products.find(prod => prod.variants.some(v => v.id === vid));
-                if (p) affectedProductIds.add(p.id);
-            });
+            // 1. Group variants by Product ID to avoid race conditions
+            // This ensures we update the product object once with all changes, rather than multiple times in parallel
+            const productUpdates = new Map<string, { product: Product, variants: ProductVariant[] }>();
+            const logsToPush: StockLog[] = [];
 
-            for (const pid of Array.from(affectedProductIds)) {
-                const p = products.find(prod => prod.id === pid);
-                if (!p) continue;
+            // Iterate through all selected items
+            for (const variantId of selectedItems) {
+                // Find parent product
+                const product = products.find(p => p.variants.some(v => v.id === variantId));
+                if (!product) continue;
 
-                const updatedVariants = p.variants.map(v => {
-                    if (selectedItems.has(v.id)) {
-                        const finalStock = bulkMode === 'SET' ? val : (v.stock + val);
+                // Get or init draft for this product
+                if (!productUpdates.has(product.id)) {
+                    productUpdates.set(product.id, { 
+                        product, 
+                        variants: [...product.variants] // Clone to avoid direct mutation issues
+                    });
+                }
+
+                const draft = productUpdates.get(product.id)!;
+                
+                // Update variant in the draft list
+                draft.variants = draft.variants.map(v => {
+                    if (v.id === variantId) {
+                        const newStock = bulkMode === 'SET' ? val : Math.max(0, v.stock + val);
                         
-                        // Log each change
-                        db.logStockMovement({
+                        logsToPush.push({
                             id: `sl-bulk-${Date.now()}-${v.id}`,
-                            productId: p.id,
+                            productId: product.id,
                             variantId: v.id,
-                            productName: p.name,
+                            productName: product.name,
                             variantDesc: `${v.color} / ${v.sizeRange}`,
-                            quantity: finalStock,
+                            quantity: newStock,
                             type: 'ADJUSTMENT',
                             reason: bulkReason,
                             date: new Date().toISOString(),
                             performedBy: user?.fullName || 'Admin'
                         });
 
-                        return { ...v, stock: finalStock };
+                        return { ...v, stock: newStock };
                     }
                     return v;
                 });
-
-                await db.saveProduct({ ...p, variants: updatedVariants });
             }
 
-            toast(`Updated ${selectedItems.size} items successfully.`, "success");
+            // 2. Perform DB Updates (Parallel per product)
+            const updatePromises = Array.from(productUpdates.values()).map(({ product, variants }) => {
+                return db.saveProduct({ ...product, variants: variants });
+            });
+
+            await Promise.all(updatePromises);
+
+            // 3. Save Logs
+            for (const log of logsToPush) {
+                await db.logStockMovement(log);
+            }
+
+            toast(`Updated ${selectedItems.size} variants across ${productUpdates.size} products.`, "success");
             setSelectedItems(new Set());
             setShowBulkModal(false);
-            refreshProducts();
+            setBulkUpdateValue('');
+            
+            // 4. Force Refresh
+            setTimeout(() => refreshProducts(), 800); 
+
         } catch (err) {
-            toast("Bulk update failed.", "error");
+            console.error(err);
+            toast("Bulk update failed. Please try again.", "error");
         } finally {
             setIsSaving(false);
         }
