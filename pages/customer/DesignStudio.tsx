@@ -38,8 +38,12 @@ export const DesignStudio: React.FC = () => {
                 }
 
                 try {
-                    // FIX: Use provided key as fallback to satisfy TS string requirement
-                    const apiKey = (process.env.API_KEY as string) || 'AIzaSyCZl9mLD6Jt7Pb6xSLRsdGU9VTop-7HesA';
+                    // FIX: Ensure API Key is a string, providing a fallback if undefined
+                    const apiKey = process.env.API_KEY || ''; 
+                    if (!apiKey) {
+                        throw new Error("API Key is missing. Please configure VITE_API_KEY or API_KEY.");
+                    }
+
                     const ai = new GoogleGenAI({ apiKey });
                     const modelName = isHighRes ? 'gemini-3-pro-image-preview' : 'gemini-2.5-flash-image';
                     
