@@ -40,6 +40,8 @@ export const DesignStudio: React.FC = () => {
                 try {
                     // FIX: Explicitly cast env var to string to satisfy TypeScript strict checks
                     const apiKey = (process.env.API_KEY as string) || '';
+                    if (!apiKey) throw new Error("API Key not found");
+                    
                     const ai = new GoogleGenAI({ apiKey });
                     const modelName = isHighRes ? 'gemini-3-pro-image-preview' : 'gemini-2.5-flash-image';
                     
