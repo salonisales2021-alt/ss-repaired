@@ -7,7 +7,7 @@ import { NotificationCenter } from '../../components/NotificationCenter';
 import { GoogleGenAI } from "@google/genai";
 import { BrandLogo } from '../../components/BrandLogo';
 
-// Helper component defined outside to avoid recreation
+// Helper component
 const SidebarItem = ({ to, icon, label, onClick, badge, className }: any) => (
     <li>
         <Link 
@@ -284,11 +284,11 @@ export const CustomerNavbar: React.FC = () => {
         </div>
       </div>
       
-      {/* Sidebar - Inline Definition to prevent remounting issues */}
+      {/* Sidebar */}
       <div 
         className={`fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm transition-opacity duration-300 ${isMenuOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} 
         onClick={() => setIsMenuOpen(false)}
-        aria-hidden={!isMenuOpen}
+        aria-hidden={!isMenuOpen ? "true" : "false"}
       >
           <aside 
             ref={sidebarRef}
