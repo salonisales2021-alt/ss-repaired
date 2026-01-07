@@ -41,7 +41,7 @@ export const MarketingTools: React.FC = () => {
                 try {
                     setProgress('Initializing AI Video Engine (Veo)...');
                     // Create NEW instance to ensure latest key is used
-                    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+                    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
                     const fullPrompt = `${promptModifier}. Character is wearing: ${selectedProduct.name}. Fabric texture: ${selectedProduct.fabric}. Focus on fluid dress movement.`;
 
                     setProgress('Generating Video (this may take up to 2 minutes)...');
