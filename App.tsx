@@ -1,3 +1,4 @@
+
 import React, { useState, Suspense } from 'react';
 import { HashRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
@@ -57,12 +58,10 @@ const Login = React.lazy(() => import('./pages/Login').then(m => ({ default: m.L
 const Register = React.lazy(() => import('./pages/Register').then(m => ({ default: m.Register })));
 const UpdatePassword = React.lazy(() => import('./pages/UpdatePassword').then(m => ({ default: m.UpdatePassword })));
 
-// Admin - Refactored Structure
+// Admin - Corrected Imports pointing to individual files to avoid circular/deprecated refs
 const AdminLayout = React.lazy(() => import('./pages/admin/AdminLayout').then(m => ({ default: m.AdminLayout })));
 const DashboardHome = React.lazy(() => import('./pages/admin/DashboardHome').then(m => ({ default: m.DashboardHome })));
 const AdminSettings = React.lazy(() => import('./pages/admin/AdminSettings').then(m => ({ default: m.AdminSettings })));
-
-// Admin Sub-Pages
 const OrderManager = React.lazy(() => import('./pages/admin/OrderManager').then(m => ({ default: m.OrderManager })));
 const Finance = React.lazy(() => import('./pages/admin/Finance').then(m => ({ default: m.Finance })));
 const ProductEditor = React.lazy(() => import('./pages/admin/ProductEditor').then(m => ({ default: m.ProductEditor })));

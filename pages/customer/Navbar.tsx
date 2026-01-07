@@ -7,6 +7,23 @@ import { NotificationCenter } from '../../components/NotificationCenter';
 import { GoogleGenAI } from "@google/genai";
 import { BrandLogo } from '../../components/BrandLogo';
 
+// Helper component defined outside to avoid recreation
+const SidebarItem = ({ to, icon, label, onClick, badge, className }: any) => (
+    <li>
+        <Link 
+          to={to} 
+          className={`flex items-center gap-4 px-4 py-3 text-gray-700 hover:bg-rani-50 hover:text-rani-700 rounded-xl transition-all duration-200 group font-medium ${className || ''}`}
+          onClick={onClick}
+        >
+            <span className="text-gray-400 group-hover:text-rani-500 transition-colors">
+                {icon}
+            </span>
+            <span className="flex-1">{label}</span>
+            {badge && <span className="bg-rani-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm">{badge}</span>}
+        </Link>
+    </li>
+);
+
 export const CustomerNavbar: React.FC = () => {
   const { user, cart, logout, selectedClient, selectClient, setTutorialOpen } = useApp();
   const { language, setLanguage, t } = useLanguage();
@@ -39,7 +56,11 @@ export const CustomerNavbar: React.FC = () => {
       document.addEventListener('keydown', handleKeyDown);
       document.body.style.overflow = 'hidden'; // Prevent background scrolling
       // Move focus to close button for a11y
-      setTimeout(() => closeButtonRef.current?.focus(), 100);
+      setTimeout(() => {
+          if (closeButtonRef.current) {
+              closeButtonRef.current.focus();
+          }
+      }, 100);
     } else {
       document.removeEventListener('keydown', handleKeyDown);
       document.body.style.overflow = 'unset';
@@ -120,9 +141,6 @@ export const CustomerNavbar: React.FC = () => {
         const transcript = event.results[0][0].transcript;
         setSearchTerm(transcript);
         // Auto-submit voice search
-        const fakeEvent = { preventDefault: () => {} } as React.FormEvent;
-        // We call handleSearch but need to update state first, or pass transcript directly. 
-        // For simplicity, we navigate directly for voice to avoid async state issues in this closure.
         navigate(`/shop?search=${encodeURIComponent(transcript)}`);
     };
     recognition.start();
@@ -159,23 +177,99 @@ export const CustomerNavbar: React.FC = () => {
       reader.readAsDataURL(file);
   };
 
-  const SidebarItem = ({ to, icon, label, onClick, badge, className }: any) => (
-      <li>
-          <Link 
-            to={to} 
-            className={`flex items-center gap-4 px-4 py-3 text-gray-700 hover:bg-rani-50 hover:text-rani-700 rounded-xl transition-all duration-200 group font-medium ${className || ''}`}
-            onClick={onClick}
-          >
-              <span className="text-gray-400 group-hover:text-rani-500 transition-colors">
-                  {icon}
-              </span>
-              <span className="flex-1">{label}</span>
-              {badge && <span className="bg-rani-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm">{badge}</span>}
-          </Link>
-      </li>
-  );
+  return (
+    <>
+    <div className="h-1 w-full bg-gradient-to-r from-rani-600 via-gold-500 to-rani-600"></div>
+    <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md shadow-sm font-sans border-b border-gold-100">
+      {selectedClient && (
+          <div className="bg-gold-50 text-gold-800 py-2 px-4 text-center text-sm font-bold flex justify-center items-center gap-4 border-b border-gold-200">
+              <span className="truncate">⚠️ On behalf of: {selectedClient.businessName}</span>
+              <button onClick={() => { selectClient(null); navigate('/agent/dashboard'); }} className="bg-white border border-gold-300 text-gold-800 px-3 py-0.5 rounded text-xs uppercase hover:bg-gold-50">Exit Proxy</button>
+          </div>
+      )}
+      
+      <div className="container mx-auto px-4 py-3">
+        <div className="flex gap-4 items-center justify-between">
+            {/* Left: Menu & Logo */}
+            <div className="flex items-center gap-4 shrink-0">
+                <button 
+                    onClick={() => setIsMenuOpen(true)} 
+                    className="p-2 -ml-2 text-luxury-black hover:text-rani-600 transition-colors focus:outline-none focus:ring-2 focus:ring-rani-500 rounded-lg"
+                    aria-label="Open Menu"
+                    aria-expanded={isMenuOpen}
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                    </svg>
+                </button>
+                <Link to="/" className="flex items-center shrink-0 focus:outline-none focus:ring-2 focus:ring-rani-500 rounded-lg">
+                    <BrandLogo className="h-12 md:h-14" />
+                </Link>
+            </div>
 
-  const Sidebar = () => (
+            {/* Center: Search (Desktop) */}
+            {user ? (
+                <form onSubmit={handleSearch} className="hidden md:flex flex-1 max-w-2xl mx-auto relative group">
+                    <div className={`flex bg-white border rounded-full overflow-hidden w-full transition-all shadow-sm ${isSemanticSearching ? 'border-purple-500 ring-2 ring-purple-50' : (isListening ? 'border-red-500 ring-2 ring-red-50' : 'border-gray-300 focus-within:border-rani-500 focus-within:ring-2 focus-within:ring-rani-100')}`}>
+                        <select className="bg-gray-50 text-[11px] font-bold uppercase px-4 border-r border-gray-200 text-gray-600 outline-none cursor-pointer tracking-wide" value={searchCategory} onChange={(e) => setSearchCategory(e.target.value)}>
+                            <option value="All">All</option>
+                            <option value="Western">Western</option>
+                            <option value="Ethnic">Ethnic</option>
+                            <option value="Indo-Western">Fusion</option>
+                        </select>
+                        <input type="text" placeholder={isSemanticSearching ? "AI is refining..." : (isAnalyzingImage ? "Analyzing Image..." : (isListening ? "Listening..." : t('nav.searchPlaceholder')))} className="flex-1 px-4 py-2 bg-transparent outline-none text-luxury-black placeholder-gray-400 w-full min-w-0 font-medium text-sm" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} disabled={isAnalyzingImage || isSemanticSearching} />
+                        <div className="flex border-l border-gray-100 items-center pr-2">
+                            <input type="file" accept="image/*" className="hidden" ref={fileInputRef} onChange={handleImageUpload} />
+                            <button type="button" onClick={() => fileInputRef.current?.click()} className="p-2 hover:bg-gray-50 rounded-full transition-colors flex items-center justify-center text-gray-400 hover:text-rani-600" disabled={isAnalyzingImage} title="Image Search">{isAnalyzingImage ? "..." : "📷"}</button>
+                            <button type="button" onClick={handleVoiceSearch} className={`p-2 hover:bg-gray-50 rounded-full transition-colors flex items-center justify-center ${isListening ? 'text-red-500 animate-pulse' : 'text-gray-400 hover:text-rani-600'}`} title="Voice Search">🎤</button>
+                        </div>
+                        <button type="submit" className="bg-rani-600 px-6 hover:bg-rani-700 text-white transition-colors shrink-0 flex items-center justify-center font-heading">
+                            {isSemanticSearching ? "⌛" : "Search"}
+                        </button>
+                    </div>
+                </form>
+            ) : (
+                <div className="hidden md:flex flex-1 justify-center gap-4">
+                     <div className="text-sm text-gray-400 italic font-medium">B2B Wholesale Portal</div>
+                </div>
+            )}
+
+            {/* Right: Actions */}
+            <div className="flex items-center gap-4 md:gap-6 shrink-0">
+                {/* Mobile Search Trigger */}
+                {user && (
+                    <button onClick={() => navigate('/shop')} className="md:hidden text-luxury-black">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                    </button>
+                )}
+
+                {user && <NotificationCenter />}
+
+                {/* Cart */}
+                <Link to="/cart" className="relative group text-luxury-black hover:text-rani-600 transition-colors focus:outline-none focus:ring-2 focus:ring-rani-500 rounded-full p-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                    </svg>
+                    {cart.length > 0 && (
+                        <span className="absolute -top-1 -right-1 bg-gold-600 text-white text-[10px] font-bold h-4 w-4 rounded-full flex items-center justify-center shadow-sm">
+                            {cart.length}
+                        </span>
+                    )}
+                </Link>
+
+                {/* Sign In Button (Header) */}
+                {!user && (
+                    <Link to="/login" className="bg-luxury-black text-white px-5 py-2 rounded-full font-bold text-xs uppercase tracking-widest hover:bg-rani-600 transition-colors shadow-lg focus:outline-none focus:ring-2 focus:ring-rani-500">
+                        Sign In
+                    </Link>
+                )}
+            </div>
+        </div>
+      </div>
+      
+      {/* Sidebar - Inline Definition to prevent remounting issues */}
       <div 
         className={`fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm transition-opacity duration-300 ${isMenuOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} 
         onClick={() => setIsMenuOpen(false)}
@@ -321,101 +415,6 @@ export const CustomerNavbar: React.FC = () => {
               </div>
           </aside>
       </div>
-  );
-
-  return (
-    <>
-    <div className="h-1 w-full bg-gradient-to-r from-rani-600 via-gold-500 to-rani-600"></div>
-    <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md shadow-sm font-sans border-b border-gold-100">
-      {selectedClient && (
-          <div className="bg-gold-50 text-gold-800 py-2 px-4 text-center text-sm font-bold flex justify-center items-center gap-4 border-b border-gold-200">
-              <span className="truncate">⚠️ On behalf of: {selectedClient.businessName}</span>
-              <button onClick={() => { selectClient(null); navigate('/agent/dashboard'); }} className="bg-white border border-gold-300 text-gold-800 px-3 py-0.5 rounded text-xs uppercase hover:bg-gold-50">Exit Proxy</button>
-          </div>
-      )}
-      
-      <div className="container mx-auto px-4 py-3">
-        <div className="flex gap-4 items-center justify-between">
-            {/* Left: Menu & Logo */}
-            <div className="flex items-center gap-4 shrink-0">
-                <button 
-                    onClick={() => setIsMenuOpen(true)} 
-                    className="p-2 -ml-2 text-luxury-black hover:text-rani-600 transition-colors focus:outline-none focus:ring-2 focus:ring-rani-500 rounded-lg"
-                    aria-label="Open Menu"
-                    aria-expanded={isMenuOpen}
-                >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                    </svg>
-                </button>
-                <Link to="/" className="flex items-center shrink-0 focus:outline-none focus:ring-2 focus:ring-rani-500 rounded-lg">
-                    <BrandLogo className="h-12 md:h-14" />
-                </Link>
-            </div>
-
-            {/* Center: Search (Desktop) */}
-            {user ? (
-                <form onSubmit={handleSearch} className="hidden md:flex flex-1 max-w-2xl mx-auto relative group">
-                    <div className={`flex bg-white border rounded-full overflow-hidden w-full transition-all shadow-sm ${isSemanticSearching ? 'border-purple-500 ring-2 ring-purple-50' : (isListening ? 'border-red-500 ring-2 ring-red-50' : 'border-gray-300 focus-within:border-rani-500 focus-within:ring-2 focus-within:ring-rani-100')}`}>
-                        <select className="bg-gray-50 text-[11px] font-bold uppercase px-4 border-r border-gray-200 text-gray-600 outline-none cursor-pointer tracking-wide" value={searchCategory} onChange={(e) => setSearchCategory(e.target.value)}>
-                            <option value="All">All</option>
-                            <option value="Western">Western</option>
-                            <option value="Ethnic">Ethnic</option>
-                            <option value="Indo-Western">Fusion</option>
-                        </select>
-                        <input type="text" placeholder={isSemanticSearching ? "AI is refining..." : (isAnalyzingImage ? "Analyzing Image..." : (isListening ? "Listening..." : t('nav.searchPlaceholder')))} className="flex-1 px-4 py-2 bg-transparent outline-none text-luxury-black placeholder-gray-400 w-full min-w-0 font-medium text-sm" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} disabled={isAnalyzingImage || isSemanticSearching} />
-                        <div className="flex border-l border-gray-100 items-center pr-2">
-                            <input type="file" accept="image/*" className="hidden" ref={fileInputRef} onChange={handleImageUpload} />
-                            <button type="button" onClick={() => fileInputRef.current?.click()} className="p-2 hover:bg-gray-50 rounded-full transition-colors flex items-center justify-center text-gray-400 hover:text-rani-600" disabled={isAnalyzingImage} title="Image Search">{isAnalyzingImage ? "..." : "📷"}</button>
-                            <button type="button" onClick={handleVoiceSearch} className={`p-2 hover:bg-gray-50 rounded-full transition-colors flex items-center justify-center ${isListening ? 'text-red-500 animate-pulse' : 'text-gray-400 hover:text-rani-600'}`} title="Voice Search">🎤</button>
-                        </div>
-                        <button type="submit" className="bg-rani-600 px-6 hover:bg-rani-700 text-white transition-colors shrink-0 flex items-center justify-center font-heading">
-                            {isSemanticSearching ? "⌛" : "Search"}
-                        </button>
-                    </div>
-                </form>
-            ) : (
-                <div className="hidden md:flex flex-1 justify-center gap-4">
-                     <div className="text-sm text-gray-400 italic font-medium">B2B Wholesale Portal</div>
-                </div>
-            )}
-
-            {/* Right: Actions */}
-            <div className="flex items-center gap-4 md:gap-6 shrink-0">
-                {/* Mobile Search Trigger */}
-                {user && (
-                    <button onClick={() => navigate('/shop')} className="md:hidden text-luxury-black">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                        </svg>
-                    </button>
-                )}
-
-                {user && <NotificationCenter />}
-
-                {/* Cart */}
-                <Link to="/cart" className="relative group text-luxury-black hover:text-rani-600 transition-colors focus:outline-none focus:ring-2 focus:ring-rani-500 rounded-full p-1">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-                    </svg>
-                    {cart.length > 0 && (
-                        <span className="absolute -top-1 -right-1 bg-gold-600 text-white text-[10px] font-bold h-4 w-4 rounded-full flex items-center justify-center shadow-sm">
-                            {cart.length}
-                        </span>
-                    )}
-                </Link>
-
-                {/* Sign In Button (Header) */}
-                {!user && (
-                    <Link to="/login" className="bg-luxury-black text-white px-5 py-2 rounded-full font-bold text-xs uppercase tracking-widest hover:bg-rani-600 transition-colors shadow-lg focus:outline-none focus:ring-2 focus:ring-rani-500">
-                        Sign In
-                    </Link>
-                )}
-            </div>
-        </div>
-      </div>
-      
-      <Sidebar />
     </header>
     </>
   );

@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import { useNavigate, useLocation, Link, useSearchParams } from 'react-router-dom';
 import { Button } from '../components/Button';
@@ -8,7 +8,7 @@ import { BrandLogo } from '../components/BrandLogo';
 import { UserRole } from '../types';
 import { db } from '../services/db';
 
-type LoginStep = 'CREDENTIALS' | 'BIOMETRIC' | 'OTP' | 'FORGOT_PASSWORD';
+type LoginStep = 'CREDENTIALS' | 'BIOMETRIC' | 'OTP' | 'FORGOT_PASSWORD' | 'TWO_FACTOR';
 
 export const Login: React.FC = () => {
   const { login, biometricLogin, isBiometricAvailable } = useApp();
@@ -30,10 +30,15 @@ export const Login: React.FC = () => {
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   
   const [otpValue, setOtpValue] = useState(['', '', '', '', '', '']);
+  const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
+  
   const [bioStatus, setBioStatus] = useState<'IDLE' | 'SCANNING' | 'SUCCESS'>('IDLE');
   
   const [hasBiometricSetup, setHasBiometricSetup] = useState(false);
   const [savedBioEmail, setSavedBioEmail] = useState<string | null>(null);
+  
+  // Store credentials temporarily for 2FA verification
+  const [pendingCreds, setPendingCreds] = useState<{id: string, pass: string} | null>(null);
 
   const showRoleSelection = !roleParam && !isAdminRoute;
 
@@ -62,24 +67,103 @@ export const Login: React.FC = () => {
     setErrorMsg(null);
 
     const idToUse = forceCreds ? forceCreds.id : identifier.trim();
-    const passToUse = forceCreds ? forceCreds.pass : password;
+    const passToUse = forceCreds ? forceCreds.pass : password.trim();
 
-    const result = await login(idToUse, isAdminRoute ? 'ADMIN' : 'CUSTOMER', passToUse);
+    // --- ADMIN 2FA INTERCEPTION ---
+    if (isAdminRoute) {
+        // 1. Verify Credentials First (Without setting app state)
+        const { user: checkUser, error } = await db.signIn(idToUse, passToUse);
+        
+        if (error || !checkUser) {
+            setErrorMsg(error || 'Invalid admin credentials');
+            setLoading(false);
+            return;
+        }
+
+        // 2. Role Check
+        const allowedRoles = [UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.DISPATCH];
+        if (!allowedRoles.includes(checkUser.role)) {
+            setErrorMsg('Access Denied: Account is not an Administrator.');
+            setLoading(false);
+            return;
+        }
+
+        // 3. Initiate 2FA
+        setPendingCreds({ id: idToUse, pass: passToUse });
+        setLoading(false);
+        setStep('TWO_FACTOR');
+        
+        // Simulate OTP send
+        console.log("OTP Sent: 123456");
+        // alert("Admin Security: Your OTP code is 123456"); // Using toast/UI instead of alert in production ideally
+        return;
+    }
+
+    // --- STANDARD USER LOGIN ---
+    const result = await login(idToUse, 'CUSTOMER', passToUse);
     setLoading(false);
     
     if (result.success) {
       const userObj = JSON.parse(localStorage.getItem('saloni_active_user') || '{}');
-      
-      // SUPER ADMIN SPECIAL FLOW
-      if (userObj.role === UserRole.SUPER_ADMIN && userObj.fullName === 'Sarthak Huria') {
-          setStep('BIOMETRIC');
-          return;
-      }
-
       proceedAfterLogin(userObj);
     } else {
       setErrorMsg(result.error === 'PENDING_APPROVAL' ? 'PENDING_APPROVAL' : (result.error || 'Invalid credentials.'));
     }
+  };
+
+  const verifyAdmin2FA = async (method: 'OTP' | 'BIO') => {
+      if (!pendingCreds) return;
+      setLoading(true);
+      setErrorMsg(null);
+
+      let verified = false;
+
+      if (method === 'OTP') {
+          const code = otpValue.join('');
+          if (code === '123456') verified = true; // Hardcoded Demo OTP
+          else {
+              setErrorMsg("Invalid OTP Code. Try '123456'");
+              setLoading(false);
+              return;
+          }
+      } else if (method === 'BIO') {
+          // This calls the biometric service
+          try {
+              const bioResult = await biometricLogin();
+              // Note: biometricLogin in AppContext also sets the user state if successful
+              if (bioResult.success) {
+                  // If biometric succeeds, we are already logged in via context
+                  const userObj = JSON.parse(localStorage.getItem('saloni_active_user') || '{}');
+                  proceedAfterLogin(userObj);
+                  return;
+              } else {
+                  setErrorMsg("Biometric verification failed.");
+                  setLoading(false);
+                  return;
+              }
+          } catch (e) {
+              setErrorMsg("Biometric error.");
+              setLoading(false);
+              return;
+          }
+      }
+
+      if (verified) {
+          // Finalize Login
+          const result = await login(pendingCreds.id, 'ADMIN', pendingCreds.pass);
+          if (result.success) {
+              const userObj = JSON.parse(localStorage.getItem('saloni_active_user') || '{}');
+              proceedAfterLogin(userObj);
+          } else {
+              setErrorMsg("Session creation failed.");
+          }
+      }
+      setLoading(false);
+  };
+
+  const autofillAdmin = () => {
+      setIdentifier('admin@salonisale.com');
+      setPassword('password123');
   };
 
   const handleBiometricLogin = async () => {
@@ -142,35 +226,15 @@ export const Login: React.FC = () => {
     }
   };
 
-  const simulateBiometric = () => {
-      setBioStatus('SCANNING');
-      setTimeout(() => {
-          setBioStatus('SUCCESS');
-          setTimeout(() => setStep('OTP'), 800);
-      }, 2000);
-  };
-
   const handleOtpChange = (index: number, value: string) => {
       if (!/^\d*$/.test(value)) return;
       const newOtp = [...otpValue];
       newOtp[index] = value.slice(-1);
       setOtpValue(newOtp);
       
-      // Auto focus next
+      // Auto focus next using refs
       if (value && index < 5) {
-          const nextInput = document.getElementById(`otp-${index + 1}`);
-          nextInput?.focus();
-      }
-  };
-
-  const verifyOtp = () => {
-      const fullOtp = otpValue.join('');
-      if (fullOtp.length === 6) {
-          setLoading(true);
-          setTimeout(() => {
-              const userObj = JSON.parse(localStorage.getItem('saloni_active_user') || '{}');
-              proceedAfterLogin(userObj);
-          }, 1500);
+          otpRefs.current[index + 1]?.focus();
       }
   };
 
@@ -188,6 +252,7 @@ export const Login: React.FC = () => {
                   </div>
                   
                   <div className="grid grid-cols-2 md:grid-cols-5 gap-4 md:gap-6">
+                      {/* ... existing role links ... */}
                       <Link to="/login?role=retailer" className="bg-white border border-gray-200 hover:border-rani-500 p-8 rounded-3xl shadow-sm hover:shadow-2xl transition-all duration-500 group flex flex-col items-center text-center">
                           <div className="w-16 h-16 bg-rani-50 rounded-2xl flex items-center justify-center mb-6 group-hover:bg-rani-500 group-hover:scale-110 group-hover:rotate-6 transition-all duration-500">
                               <span className="text-3xl">🏬</span>
@@ -289,10 +354,13 @@ export const Login: React.FC = () => {
       <div className="bg-white w-full max-w-md p-10 rounded-3xl shadow-2xl border border-gray-100 relative overflow-hidden">
         <div className="absolute top-0 right-0 w-32 h-32 bg-rani-500/5 rounded-full -mr-16 -mt-16"></div>
         
-        {/* Back Button for All Steps except initial Admin/User select */}
+        {/* Back Button */}
         <button 
             onClick={() => {
-                if (step === 'CREDENTIALS') {
+                if (step === 'TWO_FACTOR') {
+                    setStep('CREDENTIALS');
+                    setErrorMsg(null);
+                } else if (step === 'CREDENTIALS') {
                     isAdminRoute ? setAdminProfile(null) : navigate('/login');
                 } else {
                     setStep('CREDENTIALS');
@@ -303,7 +371,7 @@ export const Login: React.FC = () => {
             className="absolute top-8 left-8 text-gray-400 hover:text-rani-500 flex items-center gap-2 text-[10px] font-black uppercase tracking-widest transition-all"
         >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
-            Go Back
+            Back
         </button>
 
         {step === 'CREDENTIALS' && (
@@ -323,30 +391,16 @@ export const Login: React.FC = () => {
                     </div>
                 )}
 
-                {hasBiometricSetup && isBiometricAvailable && (
-                    <div className="mb-8">
-                        <Button fullWidth onClick={handleBiometricLogin} variant="secondary" className="h-14 font-black uppercase tracking-widest flex items-center justify-center gap-3">
-                            <span className="text-xl">🙂</span> Login with FaceID
-                        </Button>
-                        <p className="text-center text-[10px] text-gray-400 mt-2 font-bold uppercase tracking-widest">
-                            Stored Account: {savedBioEmail}
-                        </p>
-                        <div className="relative mt-6">
-                            <div className="absolute inset-0 flex items-center">
-                                <div className="w-full border-t border-gray-200"></div>
-                            </div>
-                            <div className="relative flex justify-center text-sm">
-                                <span className="px-2 bg-white text-gray-500 font-bold text-xs uppercase">Or use password</span>
-                            </div>
-                        </div>
-                    </div>
-                )}
-
                 <form onSubmit={(e) => handleLogin(e)} className="space-y-6">
                     <Input label="Email Address" type="text" placeholder="user@company.com" value={identifier} onChange={(e) => setIdentifier(e.target.value)} required className="rounded-xl h-14 font-bold" />
                     <Input label="Security Key" type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} required className="rounded-xl h-14" />
                     
                     <div className="flex justify-between items-center -mt-4">
+                        {isAdminRoute && (
+                            <button type="button" onClick={autofillAdmin} className="text-[10px] font-bold text-blue-600 hover:underline uppercase tracking-widest">
+                                Auto-Fill Admin
+                            </button>
+                        )}
                         <button type="button" onClick={() => setStep('FORGOT_PASSWORD')} className="text-[10px] font-bold text-gray-400 hover:text-rani-600 uppercase tracking-widest ml-auto">Forgot Password?</button>
                     </div>
 
@@ -363,6 +417,105 @@ export const Login: React.FC = () => {
                         </Link>
                     </div>
                 )}
+            </div>
+        )}
+
+        {/* TWO FACTOR AUTHENTICATION STEP */}
+        {step === 'TWO_FACTOR' && (
+            <div className="animate-fade-in pt-8">
+                <div className="text-center mb-8 flex flex-col items-center">
+                    <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mb-4 shadow-lg ring-4 ring-blue-50">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                        </svg>
+                    </div>
+                    <h3 className="text-xl font-black text-gray-800 uppercase tracking-tight mb-2">Admin Security</h3>
+                    <p className="text-xs text-gray-500 max-w-[250px] mx-auto font-medium">
+                        Two-factor authentication is required for administrative access.
+                    </p>
+                </div>
+
+                {errorMsg && (
+                    <div className="p-4 rounded-xl text-[11px] mb-6 font-bold bg-red-50 border border-red-200 text-red-700 animate-shake">
+                        ⚠️ {errorMsg}
+                    </div>
+                )}
+
+                <div className="space-y-8">
+                    {/* OPTION A: BIOMETRIC */}
+                    {isBiometricAvailable && (
+                        <div className="space-y-4">
+                            <Button 
+                                fullWidth 
+                                onClick={() => verifyAdmin2FA('BIO')} 
+                                className="bg-luxury-black hover:bg-gray-800 h-14 rounded-xl flex items-center justify-center gap-3 shadow-lg"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-rani-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 008 4.07M3 15.364c.64-1.319 1-2.8 1-4.364 0-1.457.2-2.858.59-4.18M5.55 17.55l-1 1" />
+                                </svg>
+                                <span className="uppercase tracking-widest text-xs font-bold">Verify with FaceID</span>
+                            </Button>
+                            
+                            <div className="relative flex items-center py-2">
+                                <div className="grow border-t border-gray-200"></div>
+                                <span className="shrink-0 mx-4 text-gray-400 text-[10px] font-black uppercase tracking-widest">Or enter code</span>
+                                <div className="grow border-t border-gray-200"></div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* OPTION B: OTP */}
+                    <div className="space-y-6">
+                        <div>
+                            <label className="block text-[10px] font-black uppercase text-gray-400 tracking-widest mb-3 text-center">
+                                Enter 6-Digit OTP sent to Email
+                            </label>
+                            <div className="flex gap-2 justify-center">
+                                {otpValue.map((digit, idx) => (
+                                    <input
+                                        key={idx}
+                                        ref={(el) => otpRefs.current[idx] = el}
+                                        id={`otp-${idx}`}
+                                        type="text"
+                                        maxLength={1}
+                                        className="w-10 h-14 border-2 border-gray-200 rounded-lg text-center text-xl font-bold focus:border-rani-500 focus:ring-4 focus:ring-rani-500/20 outline-none transition-all bg-gray-50 focus:bg-white"
+                                        value={digit}
+                                        onChange={(e) => handleOtpChange(idx, e.target.value)}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Backspace' && !digit && idx > 0) {
+                                                otpRefs.current[idx - 1]?.focus();
+                                            }
+                                            if (e.key === 'Enter') {
+                                                verifyAdmin2FA('OTP');
+                                            }
+                                        }}
+                                    />
+                                ))}
+                            </div>
+                        </div>
+
+                        <Button 
+                            fullWidth 
+                            onClick={() => verifyAdmin2FA('OTP')} 
+                            disabled={loading || otpValue.join('').length !== 6}
+                            className="h-14 font-black uppercase tracking-widest shadow-xl shadow-rani-500/20"
+                        >
+                            {loading ? 'Verifying...' : 'Verify Code'}
+                        </Button>
+                        
+                        <div className="text-center">
+                            <button 
+                                onClick={() => { 
+                                    setOtpValue(['','','','','','']); 
+                                    window.alert("OTP Resent: 123456"); 
+                                }}
+                                className="text-[10px] font-bold text-gray-400 hover:text-rani-600 uppercase tracking-widest"
+                            >
+                                Resend Code
+                            </button>
+                        </div>
+                    </div>
+                </div>
             </div>
         )}
 
@@ -414,68 +567,6 @@ export const Login: React.FC = () => {
                         Back to Login
                     </Button>
                 )}
-            </div>
-        )}
-
-        {step === 'BIOMETRIC' && (
-            <div className="text-center py-10 animate-fade-in flex flex-col items-center">
-                <div className="w-20 h-20 bg-rani-500 rounded-full flex items-center justify-center mb-8 shadow-2xl relative">
-                    <svg xmlns="http://www.w3.org/2000/svg" className={`h-10 w-10 text-white transition-all ${bioStatus === 'SCANNING' ? 'animate-pulse scale-110' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A10.003 10.003 0 0012 20a10.003 10.003 0 006.239-2.148l.054.09m-3.44 2.04C13.101 17.799 12.1 14.517 12.1 11m0 0V7m0 0a2 2 0 100-4 2 2 0 000 4zm-7.143 5.252a9.96 9.96 0 011.836-5.068m11.233 4.238a9.96 9.96 0 00-1.836-5.068m-5.633 4.238l.003.033" />
-                    </svg>
-                    {bioStatus === 'SCANNING' && <div className="absolute inset-0 border-4 border-rani-300 rounded-full animate-ping opacity-25"></div>}
-                </div>
-                <h3 className="text-xl font-black text-gray-800 uppercase tracking-tight mb-2">Biometric Lock</h3>
-                <p className="text-sm text-gray-500 mb-10">Scan your fingerprint or face to continue.</p>
-                
-                {bioStatus === 'SUCCESS' ? (
-                    <div className="text-green-500 font-black uppercase text-xs tracking-widest flex items-center gap-2">
-                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg>
-                        Identity Confirmed
-                    </div>
-                ) : (
-                    <Button onClick={simulateBiometric} disabled={bioStatus === 'SCANNING'} className="px-12 h-14 font-black uppercase tracking-widest shadow-xl shadow-rani-500/20">
-                        {bioStatus === 'SCANNING' ? 'Authenticating...' : 'Start Scan'}
-                    </Button>
-                )}
-            </div>
-        )}
-
-        {step === 'OTP' && (
-            <div className="animate-fade-in py-6">
-                <div className="text-center mb-8 flex flex-col items-center">
-                    <div className="w-16 h-16 bg-green-50 text-green-500 rounded-full flex items-center justify-center mb-4 shadow-inner">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                        </svg>
-                    </div>
-                    <h3 className="text-xl font-black text-gray-800 uppercase tracking-tight mb-2">WhatsApp OTP</h3>
-                    <p className="text-xs text-gray-500 max-w-[250px] mx-auto">
-                        Verification code sent to registered mobile
-                    </p>
-                </div>
-
-                <div className="flex justify-between gap-2 mb-8">
-                    {otpValue.map((digit, idx) => (
-                        <input 
-                            key={idx}
-                            id={`otp-${idx}`}
-                            type="text"
-                            maxLength={1}
-                            value={digit}
-                            onChange={(e) => handleOtpChange(idx, e.target.value)}
-                            className="w-12 h-14 bg-gray-50 border-2 border-gray-200 rounded-xl text-center text-xl font-black focus:border-rani-500 focus:bg-white outline-none transition-all shadow-sm"
-                        />
-                    ))}
-                </div>
-
-                <Button fullWidth disabled={loading || otpValue.join('').length < 6} onClick={verifyOtp} className="h-14 font-black uppercase tracking-widest shadow-xl shadow-rani-500/20">
-                    {loading ? 'Confirming...' : 'Verify & Enter'}
-                </Button>
-                
-                <p className="text-center mt-6">
-                    <button className="text-[10px] font-black text-gray-400 hover:text-rani-500 uppercase tracking-widest transition-colors">Resend via WhatsApp</button>
-                </p>
             </div>
         )}
       </div>
