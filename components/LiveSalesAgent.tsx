@@ -185,14 +185,14 @@ export const LiveSalesAgent: React.FC = () => {
       nextStartTimeRef.current = outCtx.currentTime;
 
       const sessionPromise = ai.live.connect({
-        model: 'gemini-2.5-flash-native-audio-preview-09-2025',
+        model: 'gemini-2.5-flash-native-audio-preview-12-2025',
         callbacks: {
           onopen: () => {
             console.log('Gemini Live Connected');
             setStatus('listening');
           },
           onmessage: async (message: LiveServerMessage) => {
-            const audioData = message.serverContent?.modelTurn?.parts[0]?.inlineData?.data;
+            const audioData = message.serverContent?.modelTurn?.parts?.[0]?.inlineData?.data;
             if (audioData) {
               setStatus('speaking');
               const buffer = await decodeAudioData(
@@ -220,7 +220,7 @@ export const LiveSalesAgent: React.FC = () => {
               };
             }
 
-            if (message.toolCall) {
+            if (message.toolCall?.functionCalls) {
                for (const fc of message.toolCall.functionCalls) {
                    let result: any = { error: "Unknown tool" };
 

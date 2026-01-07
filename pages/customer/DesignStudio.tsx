@@ -32,7 +32,7 @@ export const DesignStudio: React.FC = () => {
             const reader = new FileReader();
             reader.readAsDataURL(blob);
             reader.onloadend = async () => {
-                const base64data = reader.result?.toString().split(',')[1];
+                const base64data = reader.result?.toString().split(',')[1] || '';
                 if (!base64data) {
                     setIsGenerating(false);
                     return;

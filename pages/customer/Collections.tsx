@@ -81,7 +81,7 @@ export const Collections: React.FC = () => {
                 }
             });
 
-            const matchedIds = parseAIJson(response.text, []);
+            const matchedIds = parseAIJson<string[]>(response.text, []);
             const matches = products.filter(p => matchedIds.includes(p.id));
             setMatchedProducts(matches);
 

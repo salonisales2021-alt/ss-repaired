@@ -17,8 +17,9 @@ export const KeyGate: React.FC<KeyGateProps> = ({ children, featureName, onKeySe
   const [checking, setChecking] = useState<boolean>(true);
 
   const checkKey = async () => {
-    if (window.aistudio?.hasSelectedApiKey) {
-      const selected = await window.aistudio.hasSelectedApiKey();
+    const aistudio = (window as any).aistudio;
+    if (aistudio?.hasSelectedApiKey) {
+      const selected = await aistudio.hasSelectedApiKey();
       setHasKey(selected);
     }
     setChecking(false);
@@ -29,8 +30,9 @@ export const KeyGate: React.FC<KeyGateProps> = ({ children, featureName, onKeySe
   }, []);
 
   const handleSelectKey = async () => {
-    if (window.aistudio?.openSelectKey) {
-      await window.aistudio.openSelectKey();
+    const aistudio = (window as any).aistudio;
+    if (aistudio?.openSelectKey) {
+      await aistudio.openSelectKey();
       // Assume success as per instructions to avoid race conditions
       setHasKey(true);
       if (onKeySelected) onKeySelected();
