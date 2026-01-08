@@ -1,12 +1,12 @@
-
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { Button } from '../../components/Button';
 import { useNavigate } from 'react-router-dom';
 import { db, parseAIJson } from '../../services/db';
-import { TransactionType, VisitLog, User, Order } from '../../types';
+import { TransactionType, VisitLog, User, Order, UserRole } from '../../types';
 import { GoogleGenAI, Type } from "@google/genai";
 import { useLanguage } from '../../context/LanguageContext';
+import { Input } from '../../components/Input';
 
 type Tab = 'CLIENTS' | 'COMMISSIONS' | 'SMART_ROUTE';
 
@@ -20,7 +20,7 @@ interface BeatPlanItem {
 }
 
 export const AgentDashboard: React.FC = () => {
-    const { user, selectClient } = useApp();
+    const { user, selectClient, registerUser } = useApp();
     const { t } = useLanguage();
     const navigate = useNavigate();
     const [searchTerm, setSearchTerm] = useState('');
@@ -37,6 +37,7 @@ export const AgentDashboard: React.FC = () => {
     // Modals
     const [showCollectModal, setShowCollectModal] = useState(false);
     const [showVisitModal, setShowVisitModal] = useState(false);
+    const [showAddClientModal, setShowAddClientModal] = useState(false);
     const [selectedClientForAction, setSelectedClientForAction] = useState<User | null>(null);
 
     // Form States
@@ -46,6 +47,14 @@ export const AgentDashboard: React.FC = () => {
     const [visitPurpose, setVisitPurpose] = useState<'ORDER_COLLECTION' | 'STOCK_CHECK' | 'COURTESY_VISIT'>('ORDER_COLLECTION');
     const [visitNotes, setVisitNotes] = useState('');
     const [loadingAction, setLoadingAction] = useState(false);
+
+    // New Client Form
+    const [newClientData, setNewClientData] = useState({
+        businessName: '',
+        fullName: '',
+        mobile: '',
+        email: ''
+    });
 
     useEffect(() => {
         loadData();
@@ -61,8 +70,7 @@ export const AgentDashboard: React.FC = () => {
                 db.getAllOrders()
             ]);
             
-            // In a real system, the DB would filter clients by agent_id. 
-            // We simulate that here using the assignedAgentId field.
+            // Filter clients assigned to this agent
             const clients = allUsers.filter(u => u.assignedAgentId === user.id);
             setVisitLogs(logs);
             setMyClients(clients);
@@ -77,8 +85,8 @@ export const AgentDashboard: React.FC = () => {
         }
     };
 
-    if (!user || (user.role !== 'AGENT' && user.role !== 'DISTRIBUTOR' && user.role !== 'GADDI')) {
-        return <div className="p-8 text-center">Access Restricted. <Button onClick={() => navigate('/login')} variant="text">Login</Button></div>;
+    if (!user || (user.role !== 'AGENT')) {
+        return <div className="p-8 text-center">Access Restricted. Agents only. <Button onClick={() => navigate('/login')} variant="text">Login</Button></div>;
     }
 
     // --- Commission Logic ---
@@ -111,7 +119,6 @@ export const AgentDashboard: React.FC = () => {
                 return {
                     id: c.id,
                     name: c.businessName || c.fullName,
-                    // Fix: changed outstanding_dues to outstandingDues to match User type
                     outstanding: c.outstandingDues || 0,
                     lastOrderDate: lastOrder?.createdAt || '2023-01-01',
                     lastVisitDate: lastVisit?.date || '2023-01-01',
@@ -233,6 +240,43 @@ export const AgentDashboard: React.FC = () => {
         loadData();
     };
 
+    const handleAddClient = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setLoadingAction(true);
+        try {
+            const newUser: User = {
+                id: `u-${Date.now()}`,
+                email: newClientData.email || `client-${Date.now()}@temp.com`,
+                fullName: newClientData.fullName,
+                businessName: newClientData.businessName,
+                mobile: newClientData.mobile,
+                role: UserRole.RETAILER,
+                isApproved: true,
+                isPreBookApproved: false,
+                creditLimit: 0,
+                outstandingDues: 0,
+                assignedAgentId: user.id // Auto-link to self
+            };
+
+            // Use mobile as initial password for simplicity in field
+            const password = newClientData.mobile || 'Saloni123';
+            
+            const result = await registerUser(newUser, password);
+            if (result.success) {
+                alert(`Client Registered! Password is: ${password}`);
+                setShowAddClientModal(false);
+                setNewClientData({ businessName: '', fullName: '', mobile: '', email: '' });
+                loadData();
+            } else {
+                alert(result.error || "Registration failed.");
+            }
+        } catch (err) {
+            alert("Error creating client.");
+        } finally {
+            setLoadingAction(false);
+        }
+    };
+
     return (
         <div className="bg-gray-50 min-h-screen font-sans pb-20">
             <header className="bg-white text-luxury-black p-4 shadow-sm border-b border-rani-100 sticky top-0 z-20">
@@ -274,9 +318,12 @@ export const AgentDashboard: React.FC = () => {
                     {activeTab === 'CLIENTS' && (
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-fade-in">
                             <div className="lg:col-span-2 bg-white rounded shadow-sm border border-gray-200 overflow-hidden">
-                                <div className="p-6 border-b border-gray-100 flex justify-between gap-4">
+                                <div className="p-6 border-b border-gray-100 flex justify-between gap-4 flex-wrap">
                                     <h2 className="text-lg font-bold">Client Management</h2>
-                                    <input type="text" placeholder="Search..." className="px-4 py-2 border rounded text-sm outline-none focus:border-rani-500" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+                                    <div className="flex gap-2">
+                                        <input type="text" placeholder="Search..." className="px-4 py-2 border rounded text-sm outline-none focus:border-rani-500" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+                                        <Button size="sm" onClick={() => setShowAddClientModal(true)}>+ New</Button>
+                                    </div>
                                 </div>
                                 <div className="overflow-x-auto">
                                     <table className="w-full text-sm text-left">
@@ -287,7 +334,6 @@ export const AgentDashboard: React.FC = () => {
                                             {filteredClients.map((client) => (
                                                 <tr key={client.id} className="hover:bg-gray-50">
                                                     <td className="p-4"><div className="font-bold text-gray-800">{client.businessName}</div><div className="text-xs text-gray-500">{client.fullName}</div></td>
-                                                    {/* Fix: changed outstanding_dues to outstandingDues to match User type access */}
                                                     <td className="p-4"><div className={`font-bold ${client.outstandingDues && client.outstandingDues > 0 ? 'text-red-600' : 'text-green-600'}`}>₹{client.outstandingDues?.toLocaleString() || 0}</div></td>
                                                     <td className="p-4 text-right">
                                                         <div className="flex justify-end gap-2">
@@ -394,6 +440,29 @@ export const AgentDashboard: React.FC = () => {
                             <div><label className="block text-xs font-bold text-gray-500 uppercase">Purpose</label><select className="w-full border p-2 rounded" value={visitPurpose} onChange={e => setVisitPurpose(e.target.value as any)}><option value="ORDER_COLLECTION">Order Collection</option><option value="STOCK_CHECK">Stock Check</option><option value="COURTESY_VISIT">Courtesy Visit</option></select></div>
                             <div><label className="block text-xs font-bold text-gray-500 uppercase">Notes</label><textarea className="w-full border p-2 rounded h-24" value={visitNotes} onChange={e => setVisitNotes(e.target.value)} required></textarea></div>
                             <div className="flex gap-2 pt-2"><Button fullWidth disabled={loadingAction}>Log Visit</Button><Button type="button" variant="outline" onClick={() => setShowVisitModal(false)}>Cancel</Button></div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {showAddClientModal && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 animate-fade-in">
+                    <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+                        <h3 className="text-lg font-bold mb-4">Register New Retailer</h3>
+                        <form onSubmit={handleAddClient} className="space-y-4">
+                            <Input label="Shop / Business Name" required value={newClientData.businessName} onChange={e => setNewClientData({...newClientData, businessName: e.target.value})} />
+                            <Input label="Owner Name" required value={newClientData.fullName} onChange={e => setNewClientData({...newClientData, fullName: e.target.value})} />
+                            <Input label="Mobile Number" required value={newClientData.mobile} onChange={e => setNewClientData({...newClientData, mobile: e.target.value})} />
+                            <Input label="Email (Optional)" type="email" value={newClientData.email} onChange={e => setNewClientData({...newClientData, email: e.target.value})} />
+                            
+                            <div className="text-xs text-gray-500 italic bg-gray-50 p-2 rounded">
+                                New user will be linked to you automatically. Password will be set to their mobile number.
+                            </div>
+
+                            <div className="flex gap-2 pt-2">
+                                <Button fullWidth disabled={loadingAction}>Create Account</Button>
+                                <Button type="button" variant="outline" onClick={() => setShowAddClientModal(false)}>Cancel</Button>
+                            </div>
                         </form>
                     </div>
                 </div>

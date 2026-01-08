@@ -1,19 +1,31 @@
-
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { db } from '../../services/db';
-import { Order, User } from '../../types';
+import { Order, User, UserRole } from '../../types';
 import { Button } from '../../components/Button';
 import { useNavigate } from 'react-router-dom';
 import { BrandLogo } from '../../components/BrandLogo';
+import { Input } from '../../components/Input';
+import { useToast } from '../../components/Toaster';
 
 export const DistributorDashboard: React.FC = () => {
-    const { user } = useApp();
+    const { user, registerUser } = useApp();
     const navigate = useNavigate();
+    const { toast } = useToast();
     const [pendingGuarantees, setPendingGuarantees] = useState<Order[]>([]);
     const [myRetailers, setMyRetailers] = useState<User[]>([]);
     const [loading, setLoading] = useState(false);
     const [activeTab, setActiveTab] = useState<'PENDING' | 'SETTLEMENTS' | 'RETAILERS'>('PENDING');
+
+    // New Client State
+    const [showAddClientModal, setShowAddClientModal] = useState(false);
+    const [newClientData, setNewClientData] = useState({
+        businessName: '',
+        fullName: '',
+        mobile: '',
+        email: ''
+    });
+    const [isCreatingClient, setIsCreatingClient] = useState(false);
 
     useEffect(() => {
         loadDistributorData();
@@ -47,6 +59,42 @@ export const DistributorDashboard: React.FC = () => {
         }
     };
 
+    const handleAddClient = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setIsCreatingClient(true);
+        try {
+            const newUser: User = {
+                id: `u-${Date.now()}`,
+                email: newClientData.email || `client-${Date.now()}@temp.com`,
+                fullName: newClientData.fullName,
+                businessName: newClientData.businessName,
+                mobile: newClientData.mobile,
+                role: UserRole.RETAILER,
+                isApproved: true,
+                isPreBookApproved: false,
+                creditLimit: 0,
+                outstandingDues: 0,
+                assignedDistributorId: user?.id // Auto-link to self
+            };
+
+            const password = newClientData.mobile || 'Saloni123';
+            
+            const result = await registerUser(newUser, password);
+            if (result.success) {
+                toast(`Client Registered! Password: ${password}`, "success");
+                setShowAddClientModal(false);
+                setNewClientData({ businessName: '', fullName: '', mobile: '', email: '' });
+                loadDistributorData(); // Refresh list
+            } else {
+                toast(result.error || "Registration failed.", "error");
+            }
+        } catch (err) {
+            toast("Error creating client.", "error");
+        } finally {
+            setIsCreatingClient(false);
+        }
+    };
+
     if (!user || user.role !== 'DISTRIBUTOR') {
         return <div className="p-8 text-center">Unauthorized. Distributor access only.</div>;
     }
@@ -67,12 +115,17 @@ export const DistributorDashboard: React.FC = () => {
                             <p className="text-[10px] text-gray-500 font-black uppercase tracking-widest">Available Credit</p>
                             <p className="text-lg font-black text-green-400">₹{user.creditLimit?.toLocaleString()}</p>
                         </div>
+                        <Button size="sm" onClick={() => setShowAddClientModal(true)} className="hidden md:block">+ Add Retailer</Button>
                         <Button size="sm" variant="outline" className="border-white/20 text-white hover:bg-white/10" onClick={() => navigate('/login')}>Logout</Button>
                     </div>
                 </div>
             </header>
 
             <main className="container mx-auto p-4 md:p-8 max-w-6xl">
+                <div className="md:hidden mb-6">
+                    <Button fullWidth onClick={() => setShowAddClientModal(true)}>+ Add New Retailer</Button>
+                </div>
+
                 <div className="flex gap-4 mb-10 overflow-x-auto no-scrollbar bg-white p-2 rounded-2xl shadow-sm border border-gray-100">
                     {[
                         { id: 'PENDING', label: 'Credit Approvals', icon: '📝' },
@@ -170,6 +223,29 @@ export const DistributorDashboard: React.FC = () => {
                     </div>
                 )}
             </main>
+
+            {showAddClientModal && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 animate-fade-in">
+                    <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+                        <h3 className="text-lg font-bold mb-4">Register New Retailer</h3>
+                        <form onSubmit={handleAddClient} className="space-y-4">
+                            <Input label="Shop / Business Name" required value={newClientData.businessName} onChange={e => setNewClientData({...newClientData, businessName: e.target.value})} />
+                            <Input label="Owner Name" required value={newClientData.fullName} onChange={e => setNewClientData({...newClientData, fullName: e.target.value})} />
+                            <Input label="Mobile Number" required value={newClientData.mobile} onChange={e => setNewClientData({...newClientData, mobile: e.target.value})} />
+                            <Input label="Email (Optional)" type="email" value={newClientData.email} onChange={e => setNewClientData({...newClientData, email: e.target.value})} />
+                            
+                            <div className="text-xs text-gray-500 italic bg-gray-50 p-2 rounded">
+                                New user will be automatically linked to you as their Distributor.
+                            </div>
+
+                            <div className="flex gap-2 pt-2">
+                                <Button fullWidth disabled={isCreatingClient}>Create Account</Button>
+                                <Button type="button" variant="outline" onClick={() => setShowAddClientModal(false)}>Cancel</Button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
