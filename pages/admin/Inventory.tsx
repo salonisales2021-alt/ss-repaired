@@ -1,11 +1,26 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../../context/AppContext';
 import { Button } from '../../components/Button';
 import { db } from '../../services/db';
-import { StockLog, StockMovementType, Product, ProductVariant, ProductCategory } from '../../types';
+import { StockLog, Product, ProductVariant, ProductCategory } from '../../types';
 import { useToast } from '../../components/Toaster';
+import * as XLSX from 'xlsx';
 
 type InventoryTab = 'OVERVIEW' | 'STICKER_STUDIO' | 'HISTORY';
+
+// Interface for parsed Excel data
+interface ExcelStockRow {
+    sku: string;
+    color: string;
+    size: string;
+    stock: number;
+    match?: {
+        product: Product;
+        variant: ProductVariant;
+    };
+    status?: 'MATCHED' | 'NOT_FOUND' | 'INVALID';
+}
 
 export const Inventory: React.FC = () => {
     const { products, refreshProducts, user } = useApp();
@@ -21,6 +36,12 @@ export const Inventory: React.FC = () => {
     const [bulkUpdateValue, setBulkUpdateValue] = useState('');
     const [bulkMode, setBulkMode] = useState<'SET' | 'ADD'>('SET');
     const [bulkReason, setBulkReason] = useState('Bulk Batch Update');
+
+    // Excel Import State
+    const [showExcelModal, setShowExcelModal] = useState(false);
+    const [excelData, setExcelData] = useState<ExcelStockRow[]>([]);
+    const [excelFile, setExcelFile] = useState<File | null>(null);
+    const excelInputRef = useRef<HTMLInputElement>(null);
 
     // Stock Adjust State (Single)
     const [adjusting, setAdjusting] = useState<{p: Product, v: ProductVariant} | null>(null);
@@ -56,6 +77,7 @@ export const Inventory: React.FC = () => {
         setIsPreBook(p.category === ProductCategory.PRE_BOOK);
     };
 
+    // --- SINGLE ADJUSTMENT SAVE ---
     const handleSaveStock = async () => {
         if (!adjusting || !newQty) return;
         setIsSaving(true);
@@ -64,7 +86,6 @@ export const Inventory: React.FC = () => {
                 v.id === adjusting.v.id ? { ...v, stock: Number(newQty) } : v
             );
             
-            // Handle Category Change (Pre-Book Toggle)
             let newCategory = adjusting.p.category;
             if (isPreBook) {
                 newCategory = ProductCategory.PRE_BOOK;
@@ -93,7 +114,6 @@ export const Inventory: React.FC = () => {
 
             toast("Inventory updated successfully.", "success");
             setAdjusting(null);
-            // Small delay to ensure DB propagation before refresh
             setTimeout(() => refreshProducts(), 500);
         } catch (err) {
             toast("Failed to update inventory.", "error");
@@ -102,34 +122,29 @@ export const Inventory: React.FC = () => {
         }
     };
 
+    // --- BULK MANUAL UPDATE ---
     const handleBulkUpdate = async () => {
         if (!bulkUpdateValue || selectedItems.size === 0) return;
         setIsSaving(true);
         const val = Number(bulkUpdateValue);
         
         try {
-            // 1. Group variants by Product ID to avoid race conditions
-            // This ensures we update the product object once with all changes, rather than multiple times in parallel
             const productUpdates = new Map<string, { product: Product, variants: ProductVariant[] }>();
             const logsToPush: StockLog[] = [];
 
-            // Iterate through all selected items
             for (const variantId of selectedItems) {
-                // Find parent product
                 const product = products.find(p => p.variants.some(v => v.id === variantId));
                 if (!product) continue;
 
-                // Get or init draft for this product
                 if (!productUpdates.has(product.id)) {
                     productUpdates.set(product.id, { 
                         product, 
-                        variants: [...product.variants] // Clone to avoid direct mutation issues
+                        variants: [...product.variants]
                     });
                 }
 
                 const draft = productUpdates.get(product.id)!;
                 
-                // Update variant in the draft list
                 draft.variants = draft.variants.map(v => {
                     if (v.id === variantId) {
                         const newStock = bulkMode === 'SET' ? val : Math.max(0, v.stock + val);
@@ -153,14 +168,12 @@ export const Inventory: React.FC = () => {
                 });
             }
 
-            // 2. Perform DB Updates (Parallel per product)
             const updatePromises = Array.from(productUpdates.values()).map(({ product, variants }) => {
                 return db.saveProduct({ ...product, variants: variants });
             });
 
             await Promise.all(updatePromises);
 
-            // 3. Save Logs
             for (const log of logsToPush) {
                 await db.logStockMovement(log);
             }
@@ -170,12 +183,132 @@ export const Inventory: React.FC = () => {
             setShowBulkModal(false);
             setBulkUpdateValue('');
             
-            // 4. Force Refresh
             setTimeout(() => refreshProducts(), 800); 
 
         } catch (err) {
             console.error(err);
             toast("Bulk update failed. Please try again.", "error");
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    // --- EXCEL IMPORT LOGIC ---
+    const handleDownloadTemplate = () => {
+        const wb = XLSX.utils.book_new();
+        const wsData = [
+            ['SKU', 'Color', 'Size', 'New Stock'],
+            ['SS-ETH-001', 'Red', '24-34', '100'],
+            ['WD-001', 'Pink', '2-8Y', '50']
+        ];
+        const ws = XLSX.utils.aoa_to_sheet(wsData);
+        XLSX.utils.book_append_sheet(wb, ws, "Stock Template");
+        XLSX.writeFile(wb, "Saloni_Stock_Template.xlsx");
+    };
+
+    const handleExcelFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        setExcelFile(file);
+
+        const reader = new FileReader();
+        reader.onload = (evt) => {
+            const bstr = evt.target?.result;
+            const wb = XLSX.read(bstr, { type: 'binary' });
+            const wsname = wb.SheetNames[0];
+            const ws = wb.Sheets[wsname];
+            const data: any[] = XLSX.utils.sheet_to_json(ws);
+
+            // Map and Match Data
+            const parsedData: ExcelStockRow[] = data.map((row: any) => {
+                const sku = String(row['SKU'] || '').trim();
+                const color = String(row['Color'] || '').trim();
+                const size = String(row['Size'] || '').trim();
+                const stock = Number(row['New Stock'] || 0);
+
+                // Find Matching Variant
+                const product = products.find(p => p.sku.toLowerCase() === sku.toLowerCase());
+                let variant: ProductVariant | undefined;
+                let status: ExcelStockRow['status'] = 'NOT_FOUND';
+
+                if (product) {
+                    variant = product.variants.find(v => 
+                        v.color.toLowerCase() === color.toLowerCase() && 
+                        v.sizeRange.toLowerCase() === size.toLowerCase()
+                    );
+                    if (variant) status = 'MATCHED';
+                }
+
+                if (!sku || !color || !size) status = 'INVALID';
+
+                return {
+                    sku, color, size, stock,
+                    status,
+                    match: (product && variant) ? { product, variant } : undefined
+                };
+            });
+
+            setExcelData(parsedData);
+        };
+        reader.readAsBinaryString(file);
+    };
+
+    const handleApplyExcelImport = async () => {
+        const validRows = excelData.filter(r => r.status === 'MATCHED' && r.match);
+        if (validRows.length === 0) {
+            toast("No valid matching rows found to import.", "warning");
+            return;
+        }
+
+        setIsSaving(true);
+        try {
+            const productUpdates = new Map<string, { product: Product, variants: ProductVariant[] }>();
+            const logsToPush: StockLog[] = [];
+
+            for (const row of validRows) {
+                const { product, variant } = row.match!;
+                
+                if (!productUpdates.has(product.id)) {
+                    productUpdates.set(product.id, { product, variants: [...product.variants] });
+                }
+
+                const draft = productUpdates.get(product.id)!;
+                draft.variants = draft.variants.map(v => {
+                    if (v.id === variant.id) {
+                        logsToPush.push({
+                            id: `sl-xls-${Date.now()}-${v.id}`,
+                            productId: product.id,
+                            variantId: v.id,
+                            productName: product.name,
+                            variantDesc: `${v.color} / ${v.sizeRange}`,
+                            quantity: row.stock,
+                            type: 'ADJUSTMENT',
+                            reason: `Excel Import: ${excelFile?.name}`,
+                            date: new Date().toISOString(),
+                            performedBy: user?.fullName || 'Admin'
+                        });
+                        return { ...v, stock: row.stock };
+                    }
+                    return v;
+                });
+            }
+
+            const updatePromises = Array.from(productUpdates.values()).map(({ product, variants }) => {
+                return db.saveProduct({ ...product, variants: variants });
+            });
+
+            await Promise.all(updatePromises);
+            for (const log of logsToPush) await db.logStockMovement(log);
+
+            toast(`Successfully updated ${validRows.length} variants via Excel.`, "success");
+            setShowExcelModal(false);
+            setExcelData([]);
+            setExcelFile(null);
+            setTimeout(() => refreshProducts(), 800);
+
+        } catch (e) {
+            console.error(e);
+            toast("Import failed. Please check file format.", "error");
         } finally {
             setIsSaving(false);
         }
@@ -195,7 +328,10 @@ export const Inventory: React.FC = () => {
                     <h1 className="text-3xl font-black text-gray-800 uppercase tracking-tight">Warehouse Logistics</h1>
                     <p className="text-sm text-gray-500">Inventory levels, audit trails and label generation.</p>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-2 flex-wrap justify-end">
+                    <Button variant="outline" size="sm" onClick={() => setShowExcelModal(true)} className="px-4 border-green-600 text-green-700 hover:bg-green-50">
+                        📗 Import Excel
+                    </Button>
                     <Button variant={activeTab === 'OVERVIEW' ? 'primary' : 'outline'} onClick={() => setActiveTab('OVERVIEW')} size="sm" className="px-5 font-black uppercase text-[10px] tracking-widest">Stock Levels</Button>
                     <Button variant={activeTab === 'STICKER_STUDIO' ? 'primary' : 'outline'} onClick={() => setActiveTab('STICKER_STUDIO')} size="sm" className="px-5 font-black uppercase text-[10px] tracking-widest">🏷️ Stickers</Button>
                     <Button variant={activeTab === 'HISTORY' ? 'primary' : 'outline'} onClick={() => setActiveTab('HISTORY')} size="sm" className="px-5 font-black uppercase text-[10px] tracking-widest">History</Button>
@@ -243,7 +379,7 @@ export const Inventory: React.FC = () => {
                                             />
                                         </td>
                                         <td className="p-5">
-                                            <img src={p.images[0]} className="w-10 h-14 object-cover rounded shadow-sm group-hover:scale-110 transition-transform" />
+                                            <img src={p.images[0]} className="w-10 h-14 object-cover rounded shadow-sm group-hover:scale-105 transition-transform" />
                                         </td>
                                         <td className="p-5">
                                             <div className="font-bold text-gray-800 text-sm leading-tight">{p.name}</div>
@@ -525,6 +661,94 @@ export const Inventory: React.FC = () => {
                                 </Button>
                                 <Button variant="outline" onClick={() => setShowBulkModal(false)} className="h-16 font-black uppercase tracking-widest border-2">Cancel</Button>
                             </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* EXCEL IMPORT MODAL */}
+            {showExcelModal && (
+                <div className="fixed inset-0 bg-black/70 backdrop-blur-md z-[70] flex items-center justify-center p-4 animate-fade-in">
+                    <div className="bg-white rounded-3xl shadow-2xl max-w-2xl w-full p-8 ring-1 ring-black/5 flex flex-col max-h-[90vh]">
+                        <div className="flex justify-between items-start mb-6">
+                            <div>
+                                <h3 className="text-2xl font-black text-green-700 uppercase tracking-tight">Excel Stock Import</h3>
+                                <p className="text-xs text-gray-500 mt-1">Bulk update inventory via .xlsx file.</p>
+                            </div>
+                            <button onClick={() => setShowExcelModal(false)} className="text-gray-400 hover:text-black p-2">✕</button>
+                        </div>
+
+                        <div className="space-y-6 flex-1 overflow-y-auto custom-scrollbar">
+                            {!excelData.length && (
+                                <div className="space-y-6">
+                                    <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
+                                        <h4 className="font-bold text-sm mb-2 text-gray-800">1. Download Template</h4>
+                                        <p className="text-xs text-gray-500 mb-3">Use this template to ensure your data matches our system.</p>
+                                        <Button variant="outline" size="sm" onClick={handleDownloadTemplate} className="w-full border-green-200 text-green-700 hover:bg-green-50">
+                                            ⬇ Download Excel Template
+                                        </Button>
+                                    </div>
+
+                                    <div className="border-2 border-dashed border-gray-300 rounded-xl p-10 text-center hover:border-green-500 hover:bg-green-50/30 transition-all cursor-pointer" onClick={() => excelInputRef.current?.click()}>
+                                        <input type="file" accept=".xlsx, .xls" ref={excelInputRef} className="hidden" onChange={handleExcelFileUpload} />
+                                        <span className="text-4xl block mb-2">📗</span>
+                                        <span className="font-bold text-gray-700">Click to Upload Excel File</span>
+                                    </div>
+                                </div>
+                            )}
+
+                            {excelData.length > 0 && (
+                                <div>
+                                    <div className="flex justify-between items-center mb-3">
+                                        <h4 className="font-bold text-sm">Preview Data ({excelData.length} rows)</h4>
+                                        <span className="text-xs font-bold text-green-600 bg-green-50 px-2 py-1 rounded">
+                                            {excelData.filter(r => r.status === 'MATCHED').length} Matched
+                                        </span>
+                                    </div>
+                                    <div className="border border-gray-200 rounded-xl overflow-hidden max-h-60 overflow-y-auto">
+                                        <table className="w-full text-xs text-left">
+                                            <thead className="bg-gray-50 font-bold text-gray-500">
+                                                <tr>
+                                                    <th className="p-2">SKU</th>
+                                                    <th className="p-2">Variant</th>
+                                                    <th className="p-2 text-right">New Stock</th>
+                                                    <th className="p-2 text-right">Status</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-gray-100">
+                                                {excelData.map((row, idx) => (
+                                                    <tr key={idx} className={row.status === 'MATCHED' ? 'bg-white' : 'bg-red-50'}>
+                                                        <td className="p-2 font-mono">{row.sku}</td>
+                                                        <td className="p-2">{row.color} / {row.size}</td>
+                                                        <td className="p-2 text-right font-bold">{row.stock}</td>
+                                                        <td className="p-2 text-right">
+                                                            {row.status === 'MATCHED' 
+                                                                ? <span className="text-green-600 font-bold">✔ OK</span>
+                                                                : <span className="text-red-500 font-bold">⚠ {row.status}</span>
+                                                            }
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="pt-6 border-t border-gray-100 mt-4 flex gap-4">
+                            {excelData.length > 0 ? (
+                                <>
+                                    <Button fullWidth onClick={handleApplyExcelImport} disabled={isSaving || excelData.filter(r => r.status === 'MATCHED').length === 0} className="bg-green-600 hover:bg-green-700 h-12 shadow-lg shadow-green-200">
+                                        {isSaving ? 'Importing...' : 'Confirm Import'}
+                                    </Button>
+                                    <Button variant="outline" onClick={() => { setExcelData([]); setExcelFile(null); }} className="h-12 border-red-200 text-red-600 hover:bg-red-50">
+                                        Reset
+                                    </Button>
+                                </>
+                            ) : (
+                                <Button variant="outline" onClick={() => setShowExcelModal(false)} className="w-full h-12">Close</Button>
+                            )}
                         </div>
                     </div>
                 </div>

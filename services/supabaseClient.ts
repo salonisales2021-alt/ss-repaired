@@ -60,13 +60,10 @@ const isValidUrl = (url: string) => {
 export const isLiveData = !!(SUPABASE_URL && SUPABASE_ANON_KEY && isValidUrl(SUPABASE_URL));
 
 if (isLiveData) {
-    console.log("✅ CONNECTED TO SUPABASE LIVE DB");
-    console.log("Endpoint:", SUPABASE_URL);
+    console.log("✅ LIVE DB CONNECTED: " + SUPABASE_URL);
 } else {
-    console.warn("⚠️ SUPABASE CREDENTIALS MISSING - App running in local fallback mode.");
-    if (!SUPABASE_URL) console.warn("Missing: VITE_SUPABASE_URL");
-    else if (!isValidUrl(SUPABASE_URL)) console.warn("Invalid URL: VITE_SUPABASE_URL");
-    if (!SUPABASE_ANON_KEY) console.warn("Missing: VITE_SUPABASE_ANON_KEY");
+    // Switched from warn to info to reduce console noise during development/demo
+    console.info("ℹ️ DEMO MODE ACTIVE: Using local mock data. (Connect Supabase in Admin Settings to go live)");
 }
 
 export const supabase = createClient(

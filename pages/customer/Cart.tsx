@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
 import { Button } from '../../components/Button';
 import { PaymentCategory, UserRole, User, Order } from '../../types';
@@ -10,7 +10,7 @@ import { useToast } from '../../components/Toaster';
 import { NegotiationModal } from '../../components/NegotiationModal';
 
 export const Cart: React.FC = () => {
-  const { cart, removeFromCart, cartTotal, clearCart, user, selectedClient, users } = useApp();
+  const { cart, removeFromCart, cartTotal, clearCart, user, selectedClient, selectClient, users } = useApp();
   const { t } = useLanguage();
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -22,6 +22,18 @@ export const Cart: React.FC = () => {
   // Negotiation State
   const [showNegotiation, setShowNegotiation] = useState(false);
   const [negotiatedDiscount, setNegotiatedDiscount] = useState(0);
+
+  // Client Selection State (for Admins/Agents)
+  const [isClientSearchOpen, setIsClientSearchOpen] = useState(false);
+  const [clientSearchTerm, setClientSearchTerm] = useState('');
+
+  // Determine if the current user has privileges to change the account holder
+  const canChangeClient = user && (
+      user.role === UserRole.ADMIN || 
+      user.role === UserRole.SUPER_ADMIN || 
+      user.role === UserRole.AGENT || 
+      user.role === UserRole.DISPATCH
+  );
 
   // Use selectedClient if acting as proxy, otherwise use logged-in user
   const effectiveUser = selectedClient || user;
@@ -52,6 +64,23 @@ export const Cart: React.FC = () => {
   const discountedSubtotal = subtotal - discountAmount;
   const gstAmount = Math.round(discountedSubtotal * gstRate);
   const finalAmount = discountedSubtotal + gstAmount;
+
+  // Filtered Clients for Dropdown
+  const filteredClients = useMemo(() => {
+      if (!clientSearchTerm) return [];
+      return users.filter(u => 
+          (u.role === UserRole.RETAILER || u.role === UserRole.DISTRIBUTOR) &&
+          (u.businessName?.toLowerCase().includes(clientSearchTerm.toLowerCase()) || 
+           u.fullName.toLowerCase().includes(clientSearchTerm.toLowerCase()))
+      ).slice(0, 5);
+  }, [users, clientSearchTerm]);
+
+  const handleSelectClientFromDropdown = (client: User) => {
+      selectClient(client);
+      setIsClientSearchOpen(false);
+      setClientSearchTerm('');
+      toast(`Account Holder switched to: ${client.businessName}`, "info");
+  };
 
   const createOrderRecord = async (paymentId?: string, status: 'PENDING' | 'ACCEPTED' | 'GUARANTEED' = 'PENDING') => {
         if (!effectiveUser) return;
@@ -253,11 +282,66 @@ export const Cart: React.FC = () => {
           </div>
 
           <div className="w-full lg:w-[450px]">
-            <div className="bg-white p-8 rounded-3xl shadow-2xl sticky top-24 border border-gray-100 overflow-hidden relative">
+            <div className="bg-white p-8 rounded-3xl shadow-2xl sticky top-24 border border-gray-100 overflow-visible relative">
                 <div className="absolute top-0 right-0 w-32 h-32 bg-rani-500/5 rounded-full -mr-16 -mt-16"></div>
                 
-                {/* Proxy Mode Warning */}
-                {selectedClient && (
+                {/* Account Holder Selection (For Privileged Users) */}
+                {canChangeClient && (
+                    <div className="mb-6 relative z-50">
+                        <label className="block text-[10px] font-black uppercase text-gray-400 tracking-widest mb-1 ml-1">Bill To Account</label>
+                        <div className="relative">
+                            <div 
+                                onClick={() => setIsClientSearchOpen(!isClientSearchOpen)}
+                                className="w-full bg-gray-50 border-2 border-gray-200 rounded-xl px-4 py-3 cursor-pointer flex justify-between items-center hover:border-rani-300 transition-all"
+                            >
+                                <div className="truncate pr-2">
+                                    {effectiveUser ? (
+                                        <>
+                                            <span className="font-bold text-gray-900">{effectiveUser.businessName || effectiveUser.fullName}</span>
+                                            {selectedClient && <span className="ml-2 text-[10px] bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded font-black uppercase">Proxy</span>}
+                                        </>
+                                    ) : (
+                                        <span className="text-gray-400 italic">Select Client...</span>
+                                    )}
+                                </div>
+                                <span className="text-gray-400">▼</span>
+                            </div>
+
+                            {isClientSearchOpen && (
+                                <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-2xl border border-gray-100 overflow-hidden animate-fade-in-up">
+                                    <div className="p-2 border-b border-gray-50">
+                                        <input 
+                                            type="text" 
+                                            placeholder="Type to search clients..." 
+                                            className="w-full text-sm p-2 outline-none"
+                                            autoFocus
+                                            value={clientSearchTerm}
+                                            onChange={(e) => setClientSearchTerm(e.target.value)}
+                                        />
+                                    </div>
+                                    <div className="max-h-48 overflow-y-auto">
+                                        {filteredClients.map(c => (
+                                            <div 
+                                                key={c.id}
+                                                onClick={() => handleSelectClientFromDropdown(c)}
+                                                className="px-4 py-3 hover:bg-rani-50 cursor-pointer border-b border-gray-50 last:border-0"
+                                            >
+                                                <div className="text-sm font-bold text-gray-800">{c.businessName}</div>
+                                                <div className="text-[10px] text-gray-500">{c.fullName} • {c.mobile}</div>
+                                            </div>
+                                        ))}
+                                        {filteredClients.length === 0 && (
+                                            <div className="p-4 text-xs text-center text-gray-400 italic">No matches found</div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+
+                {/* Standard Proxy Warning (If not using dropdown but context is set) */}
+                {selectedClient && !canChangeClient && (
                     <div className="mb-6 p-4 bg-orange-50 rounded-xl border border-orange-200">
                         <p className="text-[10px] font-black uppercase text-orange-600 mb-1 tracking-widest">⚠️ On Behalf Of</p>
                         <div className="text-sm font-bold text-gray-800">{selectedClient.businessName}</div>

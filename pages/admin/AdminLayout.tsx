@@ -42,7 +42,7 @@ export const AdminLayout: React.FC = () => {
     
     const navItems = user.role === UserRole.DISPATCH 
         ? allNavItems.filter(item => allowedForDispatch.includes(item.name)) 
-        : allNavItems.filter(item => item.name !== 'Shop Orders'); // Only show for Dispatch role
+        : allNavItems.filter(item => item.name !== 'Shop Orders'); 
 
     return (
         <div className="min-h-screen bg-gray-50 font-sans flex flex-col">
@@ -72,11 +72,11 @@ export const AdminLayout: React.FC = () => {
             </header>
 
             {!isLiveData && (
-                <div className="bg-red-600 text-white text-xs font-bold text-center py-2 px-4 flex justify-between items-center">
-                    <span>⚠️ Database running in SIMULATION mode. Data will vanish on refresh.</span>
+                <div className="bg-blue-600 text-white text-xs font-bold text-center py-2 px-4 flex justify-between items-center">
+                    <span>✨ Using Demo Data (Simulation Mode). Connect Real DB in Settings.</span>
                     <button 
                         onClick={() => navigate('/admin/settings')} 
-                        className="bg-white text-red-600 px-3 py-1 rounded-full uppercase tracking-wider text-[10px] hover:bg-red-50"
+                        className="bg-white text-blue-600 px-3 py-1 rounded-full uppercase tracking-wider text-[10px] hover:bg-blue-50"
                     >
                         Connect Live DB
                     </button>
@@ -113,6 +113,18 @@ export const AdminLayout: React.FC = () => {
                                 );
                             })}
                         </nav>
+
+                        {/* EMPLOYEE CORNER */}
+                        <div className="mt-8 px-2">
+                            <div className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Employee Corner</div>
+                            <Link 
+                                to="/admin/sales-desk"
+                                onClick={() => setSidebarOpen(false)}
+                                className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 mb-1 bg-green-50 text-green-700 hover:bg-green-100 border border-green-100`}
+                            >
+                                <span className="text-lg">🛒</span> Sales Desk / Order
+                            </Link>
+                        </div>
                     </div>
                 </aside>
                 {isSidebarOpen && <div className="fixed inset-0 bg-black/50 z-10 lg:hidden" onClick={() => setSidebarOpen(false)}></div>}

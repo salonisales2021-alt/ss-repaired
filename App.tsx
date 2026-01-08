@@ -191,6 +191,7 @@ function App() {
                 <Route path="dashboard" element={<DashboardHome />} />
                 <Route path="orders" element={<OrderManager />} /> 
                 <Route path="shop-orders" element={<DispatchShop />} />
+                <Route path="sales-desk" element={<DispatchShop />} />
                 <Route path="finance" element={<Finance />} />
                 <Route path="products" element={<ProductEditor />} /> 
                 <Route path="bulk-onboarding" element={<BulkOnboarding />} />

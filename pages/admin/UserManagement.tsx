@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
 import { Button } from '../../components/Button';
@@ -21,17 +22,23 @@ export const UserManagement: React.FC = () => {
     const [healthScores, setHealthScores] = useState<Record<string, HealthScore>>({});
     const [isAnalyzing, setIsAnalyzing] = useState(false);
 
-    // Edit Modal State
-    const [selectedUser, setSelectedUser] = useState<User | null>(null);
+    // Modal State
+    const [showModal, setShowModal] = useState(false);
+    const [isEditMode, setIsEditMode] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
 
-    // Staff Creation Modal State
-    const [showStaffModal, setShowStaffModal] = useState(false);
-    const [staffData, setStaffData] = useState({
+    // Form Data
+    const [formData, setFormData] = useState<Partial<User> & { password?: string }>({
         fullName: '',
         email: '',
         mobile: '',
-        role: UserRole.ADMIN,
+        businessName: '',
+        role: UserRole.RETAILER,
+        isApproved: true,
+        isPreBookApproved: false,
+        creditLimit: 0,
+        outstandingDues: 0,
+        gstin: '',
         password: ''
     });
 
@@ -97,69 +104,92 @@ export const UserManagement: React.FC = () => {
         );
     });
 
+    const handleOpenCreate = () => {
+        setIsEditMode(false);
+        setFormData({
+            fullName: '',
+            email: '',
+            mobile: '',
+            businessName: '',
+            role: UserRole.RETAILER,
+            isApproved: true,
+            isPreBookApproved: false,
+            creditLimit: 0,
+            outstandingDues: 0,
+            gstin: '',
+            password: ''
+        });
+        setShowModal(true);
+    };
+
     const handleOpenEdit = (user: User) => {
-        setSelectedUser({ ...user });
+        setIsEditMode(true);
+        setFormData({ ...user, password: '' }); // Don't load password
+        setShowModal(true);
     };
 
-    const handleSaveUser = async () => {
-        if (!selectedUser) return;
-        setIsSaving(true);
-        try {
-            const success = await db.updateUser(selectedUser);
-            if (success) {
-                toast("Partner profile successfully updated.", "success");
-                setSelectedUser(null);
-            } else {
-                toast("Database update failed.", "error");
-            }
-        } catch (e) {
-            toast("Connection error occurred.", "error");
-        } finally {
-            setIsSaving(false);
-        }
-    };
-
-    const handleCreateStaff = async (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsSaving(true);
-        try {
-            const newStaff: User = {
-                id: `staff-${Date.now()}`,
-                email: staffData.email,
-                fullName: staffData.fullName,
-                mobile: staffData.mobile,
-                role: staffData.role,
-                isApproved: true, // Staff are auto-approved
-                creditLimit: 0,
-                outstandingDues: 0
-            };
 
-            const result = await registerUser(newStaff, staffData.password);
-            if (result.success) {
-                toast(`Staff account for ${staffData.fullName} created.`, "success");
-                setShowStaffModal(false);
-                setStaffData({ fullName: '', email: '', mobile: '', role: UserRole.ADMIN, password: '' });
+        try {
+            if (isEditMode && formData.id) {
+                // Update Existing
+                const { password, ...updateData } = formData; 
+                // Note: Password update logic usually handled separately or via specific API in real app
+                const success = await db.updateUser(updateData as User);
+                if (success) {
+                    toast("User profile updated successfully.", "success");
+                    setShowModal(false);
+                } else {
+                    toast("Update failed.", "error");
+                }
             } else {
-                toast(result.error || "Failed to create staff account.", "error");
+                // Create New
+                const newUser: User = {
+                    id: `u-${Date.now()}`, // Temporary ID, DB assigns real one
+                    ...formData as User
+                };
+                const result = await registerUser(newUser, formData.password || 'Saloni123');
+                if (result.success) {
+                    toast(`User created. Default password: ${formData.password || 'Saloni123'}`, "success");
+                    setShowModal(false);
+                } else {
+                    toast(result.error || "Creation failed.", "error");
+                }
             }
         } catch (err) {
-            toast("Error connecting to server.", "error");
+            toast("An error occurred.", "error");
         } finally {
             setIsSaving(false);
         }
     };
+
+    // Toggle Switch Component
+    const ToggleSwitch = ({ label, checked, onChange }: { label: string, checked: boolean, onChange: (val: boolean) => void }) => (
+        <div className="flex justify-between items-center bg-gray-50 p-4 rounded-xl border border-gray-100">
+            <span className="text-sm font-bold text-gray-700">{label}</span>
+            <button 
+                type="button"
+                onClick={() => onChange(!checked)}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${checked ? 'bg-rani-500' : 'bg-gray-300'}`}
+            >
+                <span className={`${checked ? 'translate-x-6' : 'translate-x-1'} inline-block h-4 w-4 transform rounded-full bg-white transition-transform`} />
+            </button>
+        </div>
+    );
 
     return (
         <div className="animate-fade-in max-w-6xl mx-auto p-6">
              <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6">
                 <div>
                     <h1 className="text-3xl font-black text-gray-800 uppercase tracking-tight">Partner Ecosystem</h1>
-                    <p className="text-sm text-gray-500">Manage staff roles, financial health, and access controls.</p>
+                    <p className="text-sm text-gray-500">Manage all user roles, access, and financial health.</p>
                 </div>
                 <div className="flex gap-3">
                     {isSuperAdmin && (
-                        <Button onClick={() => setShowStaffModal(true)} className="shadow-lg shadow-rani-500/20">
-                            + Add Staff Account
+                        <Button onClick={handleOpenCreate} className="shadow-lg shadow-rani-500/20">
+                            + Add New User
                         </Button>
                     )}
                     <Button onClick={analyzeCreditHealth} disabled={isAnalyzing} variant="outline" className="shadow-sm">
@@ -230,12 +260,13 @@ export const UserManagement: React.FC = () => {
                                     <div className="flex flex-col gap-1">
                                         <div className="flex justify-between text-[10px] text-gray-500 font-bold">Credit: <span className="text-gray-900 font-black">₹{u.creditLimit?.toLocaleString()}</span></div>
                                         {u.isPreBookApproved && <span className="text-[9px] bg-gold-100 text-gold-700 border border-gold-200 px-1.5 py-0.5 rounded w-fit font-black uppercase">Pre-Book Club</span>}
+                                        {!u.isApproved && <span className="text-[9px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded w-fit font-black uppercase">LOCKED</span>}
                                     </div>
                                 </td>
                                 <td className="p-5 text-right">
                                     <div className="flex justify-end gap-3">
                                         {!u.isApproved && (
-                                            <Button size="sm" onClick={() => approveUser(u.id)} className="bg-red-600 hover:bg-red-700 h-8 px-4 text-[10px] font-black uppercase tracking-widest shadow-red-200">Unlock Account</Button>
+                                            <Button size="sm" onClick={() => approveUser(u.id)} className="bg-red-600 hover:bg-red-700 h-8 px-4 text-[10px] font-black uppercase tracking-widest shadow-red-200">Unlock</Button>
                                         )}
                                         <Button size="sm" variant="outline" className="h-8 px-4 text-[10px] font-black uppercase tracking-widest hover:border-rani-500 hover:text-rani-600" onClick={() => handleOpenEdit(u)}>Manage</Button>
                                     </div>
@@ -246,165 +277,92 @@ export const UserManagement: React.FC = () => {
                 </table>
             </div>
 
-            {/* STAFF CREATION MODAL */}
-            {showStaffModal && (
+            {/* UNIVERSAL USER MODAL */}
+            {showModal && (
                 <div className="fixed inset-0 bg-black/70 backdrop-blur-md z-[60] flex items-center justify-center p-4">
-                    <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full overflow-hidden flex flex-col animate-fade-in ring-1 ring-black/5">
-                        <div className="p-8 border-b border-gray-100 flex justify-between items-center bg-luxury-black text-white">
+                    <div className="bg-white rounded-3xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col animate-fade-in ring-1 ring-black/5">
+                        <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50">
                             <div>
-                                <h2 className="text-xl font-black uppercase tracking-tight">Create Staff Account</h2>
-                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Backend Access Protocol</p>
+                                <h2 className="text-xl font-black text-gray-800 uppercase tracking-tight">{isEditMode ? 'Edit User Profile' : 'Add New Entity'}</h2>
+                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{isEditMode ? `ID: ${formData.id}` : 'Create access credentials'}</p>
                             </div>
-                            <button onClick={() => setShowStaffModal(false)} className="text-gray-400 hover:text-white transition-colors">✕</button>
+                            <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-black">✕</button>
                         </div>
                         
-                        <form onSubmit={handleCreateStaff} className="p-8 space-y-6">
-                            <Input label="Full Name" required value={staffData.fullName} onChange={e => setStaffData({...staffData, fullName: e.target.value})} />
-                            <Input label="Work Email" type="email" required value={staffData.email} onChange={e => setStaffData({...staffData, email: e.target.value})} />
-                            <Input label="Mobile Number" required value={staffData.mobile} onChange={e => setStaffData({...staffData, mobile: e.target.value})} />
-                            
-                            <div>
-                                <label className="block text-[10px] font-black uppercase text-gray-400 tracking-widest mb-1">System Role</label>
-                                <select 
-                                    className="w-full border border-gray-300 rounded-xl px-4 py-2.5 outline-none focus:border-rani-500 bg-white text-sm font-bold"
-                                    value={staffData.role}
-                                    onChange={e => setStaffData({...staffData, role: e.target.value as UserRole})}
-                                >
-                                    <option value={UserRole.ADMIN}>Administrator</option>
-                                    <option value={UserRole.AGENT}>Sales Agent</option>
-                                    <option value={UserRole.GADDI}>Gaddi Representative</option>
-                                </select>
-                            </div>
+                        <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
+                            <form onSubmit={handleSubmit} className="space-y-6">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <Input label="Full Name / Owner" required value={formData.fullName} onChange={e => setFormData({...formData, fullName: e.target.value})} />
+                                    <Input label="Business Name" value={formData.businessName} onChange={e => setFormData({...formData, businessName: e.target.value})} />
+                                    <Input label="Email Address" type="email" required value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} disabled={isEditMode} />
+                                    <Input label="Mobile" required value={formData.mobile} onChange={e => setFormData({...formData, mobile: e.target.value})} />
+                                </div>
 
-                            <Input label="Initial Password" type="password" required value={staffData.password} onChange={e => setStaffData({...staffData, password: e.target.value})} placeholder="Set temporary password" />
-
-                            <div className="pt-4 flex gap-3">
-                                <Button fullWidth disabled={isSaving}>
-                                    {isSaving ? 'Provisioning...' : 'Provision Staff'}
-                                </Button>
-                                <Button type="button" variant="outline" onClick={() => setShowStaffModal(false)}>Cancel</Button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            )}
-
-            {/* PARTNER EDIT MODAL */}
-            {selectedUser && (
-                <div className="fixed inset-0 bg-black/70 backdrop-blur-md z-[60] flex items-center justify-center p-4">
-                    <div className="bg-white rounded-3xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col animate-fade-in ring-1 ring-black/5">
-                        <div className="p-8 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
-                            <div className="flex items-center gap-4">
-                                <div className="w-14 h-14 bg-rani-500 rounded-2xl flex items-center justify-center text-white text-2xl font-script font-bold shadow-lg">S</div>
                                 <div>
-                                    <h2 className="text-2xl font-black text-gray-800 uppercase tracking-tight">Partner Configuration</h2>
-                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Entity ID: {selectedUser.id}</p>
+                                    <label className="block text-[10px] font-black uppercase text-gray-400 tracking-widest mb-1">System Role</label>
+                                    <select 
+                                        className="w-full border border-gray-300 rounded-xl px-4 py-3 outline-none focus:border-rani-500 bg-white text-sm font-bold"
+                                        value={formData.role}
+                                        onChange={e => setFormData({...formData, role: e.target.value as UserRole})}
+                                        disabled={isEditMode && !isSuperAdmin} // Only SuperAdmin can change roles of existing users
+                                    >
+                                        {Object.values(UserRole).map(role => (
+                                            <option key={role} value={role}>{role.replace('_', ' ')}</option>
+                                        ))}
+                                    </select>
                                 </div>
-                            </div>
-                            <button onClick={() => setSelectedUser(null)} className="p-3 hover:bg-gray-100 rounded-2xl transition-all text-gray-400 hover:text-black">✕</button>
-                        </div>
 
-                        <div className="flex-1 overflow-y-auto p-10 space-y-10 custom-scrollbar">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <section className="bg-gradient-to-br from-rani-500/10 to-transparent p-6 rounded-2xl border border-rani-100">
-                                    <div className="flex justify-between items-center mb-2">
-                                        <h3 className="font-black text-rani-900 uppercase text-xs tracking-widest">General Access</h3>
-                                        <span className={`text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-tighter ${selectedUser.isApproved ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                                            {selectedUser.isApproved ? 'AUTHORIZED' : 'LOCKED'}
-                                        </span>
-                                    </div>
-                                    <div className="flex items-center gap-3">
-                                        <button 
-                                            onClick={() => setSelectedUser({...selectedUser, isApproved: !selectedUser.isApproved})}
-                                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-all focus:outline-none ${selectedUser.isApproved ? 'bg-green-500' : 'bg-red-500'}`}
-                                        >
-                                            <span className={`${selectedUser.isApproved ? 'translate-x-6' : 'translate-x-1'} inline-block h-4 w-4 transform rounded-full bg-white transition-transform`} />
-                                        </button>
-                                        <span className="text-xs text-gray-600">Master Switch</span>
-                                    </div>
-                                </section>
+                                {!isEditMode && (
+                                    <Input label="Initial Password" type="password" required value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} />
+                                )}
 
-                                <section className="bg-gradient-to-br from-gold-500/10 to-transparent p-6 rounded-2xl border border-gold-200">
-                                    <div className="flex justify-between items-center mb-2">
-                                        <h3 className="font-black text-gold-900 uppercase text-xs tracking-widest">Pre-Book Club</h3>
-                                        <span className={`text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-tighter ${selectedUser.isPreBookApproved ? 'bg-gold-100 text-gold-700' : 'bg-gray-100 text-gray-500'}`}>
-                                            {selectedUser.isPreBookApproved ? 'VIP MEMBER' : 'STANDARD'}
-                                        </span>
-                                    </div>
-                                    <div className="flex items-center gap-3">
-                                        <button 
-                                            onClick={() => setSelectedUser({...selectedUser, isPreBookApproved: !selectedUser.isPreBookApproved})}
-                                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-all focus:outline-none ${selectedUser.isPreBookApproved ? 'bg-gold-500' : 'bg-gray-300'}`}
-                                        >
-                                            <span className={`${selectedUser.isPreBookApproved ? 'translate-x-6' : 'translate-x-1'} inline-block h-4 w-4 transform rounded-full bg-white transition-transform`} />
-                                        </button>
-                                        <span className="text-xs text-gray-600">Exclusive Line Access</span>
-                                    </div>
-                                </section>
-                            </div>
+                                {/* Features Toggles */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <ToggleSwitch 
+                                        label="Account Approved (Active)" 
+                                        checked={!!formData.isApproved} 
+                                        onChange={val => setFormData({...formData, isApproved: val})} 
+                                    />
+                                    <ToggleSwitch 
+                                        label="Pre-Book Club Access" 
+                                        checked={!!formData.isPreBookApproved} 
+                                        onChange={val => setFormData({...formData, isPreBookApproved: val})} 
+                                    />
+                                </div>
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                <Input label="Contact Person" value={selectedUser.fullName} onChange={e => setSelectedUser({...selectedUser, fullName: e.target.value})} />
-                                <Input label="Business Legal Name" value={selectedUser.businessName || ''} onChange={e => setSelectedUser({...selectedUser, businessName: e.target.value})} />
-                                <Input label="GSTIN (Tax ID)" value={selectedUser.gstin || ''} onChange={e => setSelectedUser({...selectedUser, gstin: e.target.value})} className="font-mono" />
-                                <Input label="Verified Mobile" value={selectedUser.mobile || ''} onChange={e => setSelectedUser({...selectedUser, mobile: e.target.value})} />
-                            </div>
-
-                            { (selectedUser.role === UserRole.RETAILER || selectedUser.role === UserRole.DISTRIBUTOR) && (
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 p-8 bg-gray-50 rounded-2xl border border-gray-100">
-                                    <div className="space-y-6">
-                                        <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Financial Protocols</h4>
-                                        <Input label="Max Credit Limit (₹)" type="number" value={selectedUser.creditLimit} onChange={e => setSelectedUser({...selectedUser, creditLimit: Number(e.target.value)})} />
-                                        <Input label="Current Statement Dues (₹)" type="number" value={selectedUser.outstandingDues} onChange={e => setSelectedUser({...selectedUser, outstandingDues: Number(e.target.value)})} />
-                                    </div>
-                                    <div className="space-y-6">
-                                        <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Partner Bindings</h4>
-                                        <div>
-                                            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Primary Gaddi Partner</label>
-                                            <select 
-                                                className="w-full border border-gray-300 rounded-xl px-4 py-2.5 outline-none focus:border-rani-500 bg-white text-sm font-bold"
-                                                value={selectedUser.gaddiId || ''}
-                                                onChange={e => setSelectedUser({...selectedUser, gaddiId: e.target.value})}
-                                            >
-                                                <option value="">-- No Gaddi Associated --</option>
-                                                {gaddiPartners.map(g => (
-                                                    <option key={g.id} value={g.id}>{g.businessName || g.fullName}</option>
-                                                ))}
-                                            </select>
+                                {/* Financials - Only for relevant roles */}
+                                {(formData.role === UserRole.RETAILER || formData.role === UserRole.DISTRIBUTOR) && (
+                                    <div className="bg-blue-50 p-6 rounded-xl border border-blue-100 space-y-6">
+                                        <h4 className="text-[10px] font-black text-blue-700 uppercase tracking-widest">Financial Configuration</h4>
+                                        <div className="grid grid-cols-2 gap-6">
+                                            <Input label="Credit Limit (₹)" type="number" value={formData.creditLimit} onChange={e => setFormData({...formData, creditLimit: Number(e.target.value)})} />
+                                            <Input label="Current Outstanding (₹)" type="number" value={formData.outstandingDues} onChange={e => setFormData({...formData, outstandingDues: Number(e.target.value)})} />
                                         </div>
-                                        <div>
-                                            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Assigned Sales Agent</label>
-                                            <select 
-                                                className="w-full border border-gray-300 rounded-xl px-4 py-2.5 outline-none focus:border-rani-500 bg-white text-sm font-bold"
-                                                value={selectedUser.assignedAgentId || ''}
-                                                onChange={e => setSelectedUser({...selectedUser, assignedAgentId: e.target.value})}
-                                            >
-                                                <option value="">-- Direct Sale / No Agent --</option>
-                                                {agentPartners.map(agent => (
-                                                    <option key={agent.id} value={agent.id}>{agent.fullName}</option>
-                                                ))}
-                                            </select>
+                                        
+                                        <div className="grid grid-cols-2 gap-6">
+                                            <div>
+                                                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Gaddi Link</label>
+                                                <select className="w-full border border-gray-300 rounded-lg p-2 text-xs" value={formData.gaddiId || ''} onChange={e => setFormData({...formData, gaddiId: e.target.value})}>
+                                                    <option value="">-- None --</option>
+                                                    {gaddiPartners.map(g => <option key={g.id} value={g.id}>{g.businessName}</option>)}
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Agent Link</label>
+                                                <select className="w-full border border-gray-300 rounded-lg p-2 text-xs" value={formData.assignedAgentId || ''} onChange={e => setFormData({...formData, assignedAgentId: e.target.value})}>
+                                                    <option value="">-- None --</option>
+                                                    {agentPartners.map(a => <option key={a.id} value={a.id}>{a.fullName}</option>)}
+                                                </select>
+                                            </div>
                                         </div>
                                     </div>
+                                )}
+
+                                <div className="pt-4 flex justify-end gap-4">
+                                    <Button type="button" variant="outline" onClick={() => setShowModal(false)}>Cancel</Button>
+                                    <Button disabled={isSaving}>{isSaving ? 'Processing...' : (isEditMode ? 'Save Changes' : 'Create User')}</Button>
                                 </div>
-                            )}
-
-                            <div>
-                                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Confidential Admin Remarks</label>
-                                <textarea 
-                                    className="w-full border border-gray-200 rounded-2xl p-5 text-sm focus:ring-2 focus:ring-rani-500/20 outline-none h-32 bg-gray-50/30 font-medium"
-                                    placeholder="Internal remarks on behavior or custom terms..."
-                                    value={selectedUser.adminNotes || ''}
-                                    onChange={e => setSelectedUser({...selectedUser, adminNotes: e.target.value})}
-                                />
-                            </div>
-                        </div>
-
-                        <div className="p-8 border-t border-gray-100 bg-gray-50 flex justify-end gap-4 shrink-0">
-                            <Button variant="outline" className="px-8 font-black uppercase tracking-widest text-xs" onClick={() => setSelectedUser(null)}>Discard</Button>
-                            <Button onClick={handleSaveUser} disabled={isSaving} className="px-12 font-black uppercase tracking-widest text-xs shadow-xl shadow-rani-500/20">
-                                {isSaving ? 'Syncing...' : 'Persist Changes'}
-                            </Button>
+                            </form>
                         </div>
                     </div>
                 </div>
