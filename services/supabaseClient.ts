@@ -1,29 +1,45 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Access environment variables safely
+// Access environment variables safely, checking both import.meta.env and process.env
+// and handling potential variable renaming by Vite (VITE_ prefix vs bare name)
 const getEnv = (key: string) => {
+  let val: string | undefined;
+
   try {
+    // 1. Check import.meta.env (Vite standard)
     // @ts-ignore
     if (typeof import.meta !== 'undefined' && import.meta.env) {
       // @ts-ignore
-      return import.meta.env[key];
+      val = import.meta.env[key];
     }
   } catch (e) {}
 
+  if (val) return val;
+
   try {
+    // 2. Check process.env (Vite shim / Node)
     // @ts-ignore
     if (typeof process !== 'undefined' && process.env) {
       // @ts-ignore
-      return process.env[key];
+      val = process.env[key];
     }
   } catch (e) {}
   
-  return undefined;
+  return val;
 };
 
-// Retrieve Credentials - Priority: LocalStorage > Env Vars
-const SUPABASE_URL = localStorage.getItem('VITE_SUPABASE_URL') || (getEnv('VITE_SUPABASE_URL') as string) || '';
-const SUPABASE_ANON_KEY = localStorage.getItem('VITE_SUPABASE_ANON_KEY') || (getEnv('VITE_SUPABASE_ANON_KEY') as string) || '';
+// Retrieve Credentials - Priority: LocalStorage > Env Vars (VITE_ prefixed) > Env Vars (Standard)
+const SUPABASE_URL = 
+    localStorage.getItem('VITE_SUPABASE_URL') || 
+    (getEnv('VITE_SUPABASE_URL') as string) || 
+    (getEnv('SUPABASE_URL') as string) || 
+    '';
+
+const SUPABASE_ANON_KEY = 
+    localStorage.getItem('VITE_SUPABASE_ANON_KEY') || 
+    (getEnv('VITE_SUPABASE_ANON_KEY') as string) || 
+    (getEnv('SUPABASE_ANON_KEY') as string) || 
+    '';
 
 // Check if keys are valid (simple length check to avoid placeholders)
 export const isLiveData = !!(SUPABASE_URL && SUPABASE_ANON_KEY && SUPABASE_URL.startsWith('http'));

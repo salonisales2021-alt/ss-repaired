@@ -7,6 +7,7 @@ import { GoogleGenAI } from "@google/genai";
 import { useLanguage } from '../../context/LanguageContext';
 import { UserRole } from '../../types';
 import { Button } from '../../components/Button';
+import { isLiveData } from '../../services/supabaseClient';
 
 // Widget for AI Predictions
 const RestockRecommender: React.FC = () => {
@@ -104,6 +105,42 @@ const RestockRecommender: React.FC = () => {
     );
 };
 
+// New Component: System Status
+const SystemHealthWidget: React.FC = () => {
+    const hasAiKey = !!process.env.API_KEY;
+    const isProd = process.env.NODE_ENV === 'production';
+
+    return (
+        <div className="bg-luxury-black text-white p-4 rounded-xl shadow-lg mb-8 flex flex-col md:flex-row justify-between items-center gap-4">
+            <div className="flex items-center gap-4">
+                <div className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center text-xl">
+                    🚀
+                </div>
+                <div>
+                    <h3 className="font-bold text-sm uppercase tracking-widest">Live Operations Center</h3>
+                    <p className="text-xs text-gray-400">System Performance Monitor</p>
+                </div>
+            </div>
+            
+            <div className="flex gap-4">
+                <div className={`px-4 py-2 rounded-lg border flex items-center gap-2 ${isLiveData ? 'bg-green-500/10 border-green-500/30' : 'bg-red-500/10 border-red-500/30'}`}>
+                    <div className={`w-2 h-2 rounded-full ${isLiveData ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></div>
+                    <span className="text-xs font-bold">{isLiveData ? 'DB Connected' : 'DB Offline'}</span>
+                </div>
+                
+                <div className={`px-4 py-2 rounded-lg border flex items-center gap-2 ${hasAiKey ? 'bg-purple-500/10 border-purple-500/30' : 'bg-yellow-500/10 border-yellow-500/30'}`}>
+                    <div className={`w-2 h-2 rounded-full ${hasAiKey ? 'bg-purple-500' : 'bg-yellow-500'}`}></div>
+                    <span className="text-xs font-bold">{hasAiKey ? 'AI Active' : 'AI Inactive'}</span>
+                </div>
+
+                <div className="px-4 py-2 rounded-lg border bg-blue-500/10 border-blue-500/30 flex items-center gap-2">
+                    <span className="text-xs font-bold text-blue-400">{isProd ? 'PRODUCTION' : 'DEV MODE'}</span>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 export const DashboardHome: React.FC = () => {
     const { products, user } = useApp();
     const [stats, setStats] = useState({
@@ -131,6 +168,8 @@ export const DashboardHome: React.FC = () => {
         
         return (
             <div className="animate-fade-in max-w-6xl mx-auto pb-12">
+                <SystemHealthWidget />
+                
                 <div className="flex justify-between items-end mb-8">
                     <div>
                         <h1 className="text-2xl font-bold text-gray-800 mb-1">Dispatch Logistics</h1>
@@ -188,6 +227,8 @@ export const DashboardHome: React.FC = () => {
     // --- FULL ADMIN VIEW ---
     return (
         <div className="animate-fade-in max-w-6xl mx-auto pb-12">
+            <SystemHealthWidget />
+
             <div className="flex justify-between items-end mb-8">
                 <div>
                     <h1 className="text-2xl font-bold text-gray-800 mb-1">Admin Overview</h1>
@@ -282,3 +323,4 @@ export const DashboardHome: React.FC = () => {
     );
 };
 export default DashboardHome;
+    
