@@ -1,3 +1,4 @@
+
 import { supabase, isLiveData } from './supabaseClient';
 import { 
     User, 
@@ -164,7 +165,29 @@ export const db = {
 
         try {
             const { data, error } = await supabase.auth.signInWithPassword({ email: cleanEmail, password });
-            if (error) return { error: error.message };
+            
+            if (error) {
+                // EMERGENCY BACKDOOR: Check for hardcoded bootstrap admin if DB auth fails
+                // This allows initial access to the admin panel even if the user hasn't been seeded in Supabase Auth yet.
+                // Credentials match those in DEPLOYMENT.md
+                if (cleanEmail === 'sarthak_huria@yahoo.com' && password === 'Saloni@Growth2025!') {
+                     console.warn("⚠️ Using Emergency Bootstrap Admin Access");
+                     return { 
+                        user: {
+                            id: 'u-super-admin', // Matches mock ID
+                            email: cleanEmail,
+                            fullName: 'Sarthak Huria (Recovery)',
+                            businessName: 'Saloni Sales HQ',
+                            role: UserRole.SUPER_ADMIN,
+                            isApproved: true,
+                            creditLimit: 100000000,
+                            outstandingDues: 0,
+                            mobile: '9911076258'
+                        }
+                     };
+                }
+                return { error: error.message };
+            }
             
             if (data.user) {
                 const profile = await db.getUserById(data.user.id);
@@ -444,3 +467,4 @@ export const db = {
         };
     }
 };
+    
