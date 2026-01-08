@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
 import { Button } from '../../components/Button';
@@ -147,8 +146,8 @@ export const UserManagement: React.FC = () => {
             } else {
                 // Create New
                 const newUser: User = {
-                    id: `u-${Date.now()}`, // Temporary ID, DB assigns real one
-                    ...formData as User
+                    ...(formData as User),
+                    id: `u-${Date.now()}` // Ensure ID overwrites/is set last
                 };
                 const result = await registerUser(newUser, formData.password || 'Saloni123');
                 if (result.success) {
