@@ -16,7 +16,7 @@ export const MOCK_USERS: User[] = [
   },
   {
     id: 'u-dispatch',
-    email: 'dispatch@salonisale.com',
+    email: 'employee@salonisales.com',
     fullName: 'Dispatch Team',
     businessName: 'Saloni Logistics',
     role: UserRole.DISPATCH,

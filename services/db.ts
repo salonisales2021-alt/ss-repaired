@@ -67,6 +67,7 @@ export const runAiWithRetry = async <T>(
 };
 
 // --- HYBRID DATABASE SERVICE ---
+// Attempts to use Live DB, falls back to Mock Data if connection fails or keys are missing.
 
 export const db = {
     // PRODUCTS
@@ -74,19 +75,23 @@ export const db = {
         if (!isLiveData) return MOCK_PRODUCTS;
         const { data, error } = await supabase.from('products').select('*');
         if (error) {
-            console.warn("DB Fallback (Products):", error.message);
+            console.warn("DB Error (Products), falling back:", error.message);
             return MOCK_PRODUCTS;
         }
         return (data as Product[]) || [];
     },
 
     saveProduct: async (product: Partial<Product>): Promise<boolean> => {
-        if (!isLiveData) return true; // Simulate success
+        if (!isLiveData) return true;
         const prodToSave = { ...product };
         if (!prodToSave.id) prodToSave.id = `p-${Date.now()}`;
         
         const { error } = await supabase.from('products').upsert(prodToSave);
-        return !error;
+        if (error) {
+            console.error("DB Error saveProduct:", JSON.stringify(error, null, 2));
+            return false;
+        }
+        return true;
     },
 
     deleteProduct: async (id: string): Promise<boolean> => {
@@ -97,7 +102,7 @@ export const db = {
 
     // MEDIA (Storage Buckets)
     uploadImage: async (file: File, bucket = 'products'): Promise<string> => {
-        if (!isLiveData) return URL.createObjectURL(file); // Mock URL
+        if (!isLiveData) return URL.createObjectURL(file);
         try {
             const fileName = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.]/g, '')}`;
             const { error } = await supabase.storage.from(bucket).upload(fileName, file);
@@ -106,8 +111,8 @@ export const db = {
             const { data } = supabase.storage.from(bucket).getPublicUrl(fileName);
             return data.publicUrl;
         } catch (e: any) {
-            console.error("Upload failed:", e.message);
-            return URL.createObjectURL(file); // Fallback to local blob
+            console.error("Upload failed (Live):", e.message);
+            return URL.createObjectURL(file); // Graceful fallback for demo
         }
     },
 
@@ -120,7 +125,7 @@ export const db = {
             
             const { data } = supabase.storage.from('videos').getPublicUrl(fileName);
             return data.publicUrl;
-        } catch (e) {
+        } catch (e: any) {
             return URL.createObjectURL(blob);
         }
     },
@@ -134,7 +139,7 @@ export const db = {
         if (!isLiveData) return MOCK_USERS;
         const { data, error } = await supabase.from('users').select('*');
         if (error) {
-            console.warn("DB Fallback (Users):", error.message);
+            console.warn("DB Error (Users), falling back:", error.message);
             return MOCK_USERS;
         }
         return data as User[];
@@ -143,7 +148,7 @@ export const db = {
     getUserById: async (id: string): Promise<User | null> => {
         if (!isLiveData) return MOCK_USERS.find(u => u.id === id) || null;
         const { data, error } = await supabase.from('users').select('*').eq('id', id).single();
-        if (error || !data) return null;
+        if (error || !data) return MOCK_USERS.find(u => u.id === id) || null;
         return data as User;
     },
 
@@ -151,10 +156,10 @@ export const db = {
         const cleanEmail = email ? email.toLowerCase().trim() : '';
         
         if (!isLiveData) {
-            // Mock Login Logic
+            // Mock Login Fallback
             const mockUser = MOCK_USERS.find(u => u.email.toLowerCase() === cleanEmail);
             if (mockUser) return { user: mockUser };
-            return { error: 'Invalid credentials (Mock)' };
+            return { error: 'Invalid credentials (Mock Mode)' };
         }
 
         try {
@@ -165,7 +170,7 @@ export const db = {
                 const profile = await db.getUserById(data.user.id);
                 if (profile) return { user: profile };
                 
-                // Fallback if profile missing
+                // Fallback if profile missing in DB but auth exists
                 return { 
                     user: {
                         id: data.user.id,
@@ -190,8 +195,9 @@ export const db = {
 
     registerUser: async (user: User, password?: string): Promise<{ success: boolean; error?: string; data?: User }> => {
         if (!isLiveData) {
-            MOCK_USERS.push({ ...user, id: `u-mock-${Date.now()}` });
-            return { success: true, data: user };
+            const newUser = { ...user, id: `u-mock-${Date.now()}` };
+            MOCK_USERS.push(newUser);
+            return { success: true, data: newUser };
         }
 
         const { data: authData, error: authError } = await supabase.auth.signUp({ 
@@ -204,7 +210,7 @@ export const db = {
         
         if (authData.user) {
             const newUser = { ...user, id: authData.user.id };
-            await supabase.from('users').upsert({
+            const { error: profileError } = await supabase.from('users').upsert({
                 id: authData.user.id,
                 email: user.email,
                 fullName: user.fullName,
@@ -217,6 +223,9 @@ export const db = {
                 creditLimit: 0,
                 outstandingDues: 0
             });
+
+            if (profileError) console.error("Profile creation error:", profileError);
+
             return { success: true, data: newUser };
         }
         return { success: false, error: "Registration failed" };
@@ -225,6 +234,7 @@ export const db = {
     updateUser: async (user: User): Promise<boolean> => {
         if (!isLiveData) return true;
         const { error } = await supabase.from('users').update(user).eq('id', user.id);
+        if (error) console.error("Error updating user:", error);
         return !error;
     },
 
@@ -257,6 +267,7 @@ export const db = {
         const ord = { ...order };
         if (!ord.id) ord.id = `ord-${Date.now()}`;
         const { error } = await supabase.from('orders').insert(ord);
+        if (error) console.error("Create order error:", error);
         return !error;
     },
 
@@ -270,13 +281,14 @@ export const db = {
     getOrdersByUser: async (userId: string): Promise<Order[]> => {
         if (!isLiveData) return MOCK_ORDERS.filter(o => o.userId === userId);
         const { data, error } = await supabase.from('orders').select('*').eq('userId', userId);
-        if (error) return [];
+        if (error) return MOCK_ORDERS.filter(o => o.userId === userId);
         return data as Order[];
     },
 
     updateOrder: async (id: string, updates: Partial<Order>): Promise<boolean> => {
         if (!isLiveData) return true;
         const { error } = await supabase.from('orders').update(updates).eq('id', id);
+        if (error) console.error("Update order error:", error);
         return !error;
     },
 
@@ -286,7 +298,7 @@ export const db = {
         let query = supabase.from('transactions').select('*');
         if (userId) query = query.eq('userId', userId);
         const { data, error } = await query;
-        if (error) return [];
+        if (error) return MOCK_TRANSACTIONS;
         return (data as Transaction[]) || [];
     },
 
