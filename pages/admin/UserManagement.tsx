@@ -145,9 +145,10 @@ export const UserManagement: React.FC = () => {
                 }
             } else {
                 // Create New
+                // FIX: Spread formData first to avoid TS2783 (overwriting id)
                 const newUser: User = {
                     ...(formData as User),
-                    id: `u-${Date.now()}` // Ensure ID overwrites/is set last
+                    id: `u-${Date.now()}` // Explicit ID overrides anything in formData
                 };
                 const result = await registerUser(newUser, formData.password || 'Saloni123');
                 if (result.success) {
