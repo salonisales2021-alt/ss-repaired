@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '../../components/Button';
 import { Input } from '../../components/Input';
 import { useToast } from '../../components/Toaster';
+import { GoogleGenAI } from "@google/genai";
 
 export const AdminSettings: React.FC = () => {
     const { toast } = useToast();
@@ -20,6 +21,7 @@ export const AdminSettings: React.FC = () => {
     // AI Studio State
     const [aiStudioAvailable, setAiStudioAvailable] = useState(false);
     const [aiKeyLinked, setAiKeyLinked] = useState(false);
+    const [isTestingAi, setIsTestingAi] = useState(false);
 
     useEffect(() => {
         // Check for AI Studio Integration (IDX/Project IDX environment)
@@ -39,14 +41,37 @@ export const AdminSettings: React.FC = () => {
         if (aistudio) {
             try {
                 await aistudio.openSelectKey();
-                // Assume success after dialog close as per best practices for this API
                 setAiKeyLinked(true);
                 toast("AI Studio Project Linked Successfully!", "success");
-                // Optional: Reload to ensure env vars propagate if needed by framework
                 setTimeout(() => window.location.reload(), 1000);
             } catch (e) {
                 toast("Failed to link AI Studio project.", "error");
             }
+        }
+    };
+
+    const handleTestAiConnection = async () => {
+        setIsTestingAi(true);
+        try {
+            const apiKey = process.env.API_KEY;
+            if (!apiKey) throw new Error("API Key environment variable is missing.");
+
+            const ai = new GoogleGenAI({ apiKey });
+            const response = await ai.models.generateContent({
+                model: 'gemini-3-flash-preview',
+                contents: 'Ping. Reply with "Connected" only.',
+            });
+            
+            if (response.text?.includes("Connected")) {
+                toast("✅ AI Connection Verified! Gemini 3 Flash is active.", "success");
+            } else {
+                toast("⚠️ AI Connected but returned unexpected response.", "warning");
+            }
+        } catch (e: any) {
+            console.error(e);
+            toast(`❌ Connection Failed: ${e.message || "Invalid API Key"}`, "error");
+        } finally {
+            setIsTestingAi(false);
         }
     };
 
@@ -66,7 +91,6 @@ export const AdminSettings: React.FC = () => {
             localStorage.setItem('VITE_SUPABASE_ANON_KEY', sbKey);
             if (oldUrl !== sbUrl) needsReload = true;
         } else {
-            // If cleared, we remove them to potentially fall back to env vars
             if (oldUrl) {
                 localStorage.removeItem('VITE_SUPABASE_URL');
                 localStorage.removeItem('VITE_SUPABASE_ANON_KEY');
@@ -155,19 +179,28 @@ export const AdminSettings: React.FC = () => {
                                 </div>
                             ) : (
                                 <div>
-                                    <div className="flex items-center gap-2 mb-3">
-                                        <span className={`w-3 h-3 rounded-full ${process.env.API_KEY ? 'bg-green-500' : 'bg-yellow-500'}`}></span>
-                                        <h4 className="font-bold text-gray-800">Manual Environment Configuration</h4>
+                                    <div className="flex justify-between items-start">
+                                        <div>
+                                            <div className="flex items-center gap-2 mb-3">
+                                                <span className={`w-3 h-3 rounded-full ${process.env.API_KEY ? 'bg-green-500' : 'bg-yellow-500'}`}></span>
+                                                <h4 className="font-bold text-gray-800">Manual Environment Configuration</h4>
+                                            </div>
+                                            <p className="text-sm text-gray-500 mb-4">
+                                                Server-side API Key detected.
+                                            </p>
+                                            <div className="bg-gray-100 p-3 rounded font-mono text-xs text-gray-600 mb-4 inline-block">
+                                                {process.env.API_KEY ? '✅ API_KEY is configured.' : '⚠️ API_KEY is missing.'}
+                                            </div>
+                                            <p className="text-xs text-gray-400">
+                                                To change this, update your environment variables in Vercel/Netlify.
+                                            </p>
+                                        </div>
+                                        {process.env.API_KEY && (
+                                            <Button size="sm" variant="outline" onClick={handleTestAiConnection} disabled={isTestingAi} className="border-purple-200 text-purple-700 hover:bg-purple-50">
+                                                {isTestingAi ? 'Verifying...' : '⚡ Test Connection'}
+                                            </Button>
+                                        )}
                                     </div>
-                                    <p className="text-sm text-gray-500 mb-4">
-                                        AI Studio integration is not detected in this environment. To enable AI features:
-                                    </p>
-                                    <div className="bg-gray-100 p-3 rounded font-mono text-xs text-gray-600 mb-2">
-                                        {process.env.API_KEY ? 'API_KEY is configured.' : 'API_KEY is missing.'}
-                                    </div>
-                                    <p className="text-xs text-gray-400">
-                                        Add <code>API_KEY</code> to your environment variables (Vercel/Netlify/Local).
-                                    </p>
                                 </div>
                             )}
                         </div>
@@ -263,4 +296,3 @@ export const AdminSettings: React.FC = () => {
     );
 };
 export default AdminSettings;
-    
