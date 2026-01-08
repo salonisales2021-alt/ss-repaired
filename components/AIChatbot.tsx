@@ -1,8 +1,9 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { GoogleGenAI, Chat, GenerateContentResponse } from "@google/genai";
 import { useApp } from '../context/AppContext';
 import { Button } from './Button';
-import { handleAiError } from '../services/db';
+import { handleAiError, getGeminiKey } from '../services/db';
 
 interface Message {
     role: 'user' | 'model';
@@ -26,7 +27,7 @@ export const AIChatbot: React.FC = () => {
     }, [messages, isTyping]);
 
     const initializeChat = async () => {
-        const apiKey = process.env.API_KEY;
+        const apiKey = getGeminiKey();
         if (!apiKey) {
             console.warn("AI Chatbot: API Key is missing.");
             return;
@@ -68,7 +69,7 @@ export const AIChatbot: React.FC = () => {
         if (!chatSessionRef.current) {
             await initializeChat();
             if (!chatSessionRef.current) {
-                setMessages(prev => [...prev, { role: 'model', text: "System: API Key missing. Please configure 'API_KEY' in your environment variables." }]);
+                setMessages(prev => [...prev, { role: 'model', text: "System: API Key missing. Please configure it in Admin Settings." }]);
                 return;
             }
         }

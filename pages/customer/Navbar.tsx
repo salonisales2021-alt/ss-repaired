@@ -6,6 +6,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { NotificationCenter } from '../../components/NotificationCenter';
 import { GoogleGenAI } from "@google/genai";
 import { BrandLogo } from '../../components/BrandLogo';
+import { getGeminiKey } from '../../services/db';
 
 // Helper component
 const SidebarItem = ({ to, icon, label, onClick, badge, className }: any) => (
@@ -95,10 +96,13 @@ export const CustomerNavbar: React.FC = () => {
 
     const isSkuLike = /^[A-Z0-9-]{3,10}$/i.test(searchTerm.trim()) && /\d/.test(searchTerm);
 
-    if (!isSkuLike) {
+    // Only use AI if key exists and it's not a simple SKU
+    const apiKey = getGeminiKey();
+
+    if (!isSkuLike && apiKey) {
         setIsSemanticSearching(true);
         try {
-            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+            const ai = new GoogleGenAI({ apiKey });
             
             const prompt = `You are a smart search assistant for a B2B Kids Clothing App (Saloni Sales).
             User Query: "${searchTerm}"
@@ -168,7 +172,10 @@ export const CustomerNavbar: React.FC = () => {
           const base64data = reader.result?.toString().split(',')[1];
           if (!base64data) return;
           try {
-              const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+              const apiKey = getGeminiKey();
+              if (!apiKey) throw new Error("API Key Missing");
+
+              const ai = new GoogleGenAI({ apiKey });
               const response = await ai.models.generateContent({
                   model: 'gemini-2.5-flash',
                   contents: {
@@ -183,7 +190,7 @@ export const CustomerNavbar: React.FC = () => {
                   setSearchTerm(keywords);
                   navigate(`/shop?search=${encodeURIComponent(keywords)}`);
               }
-          } catch (error) { console.error(error); } 
+          } catch (error) { console.error(error); alert("Visual Search failed. Check API Key."); } 
           finally {
               setIsAnalyzingImage(false);
               if (fileInputRef.current) fileInputRef.current.value = '';

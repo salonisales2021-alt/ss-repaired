@@ -4,6 +4,7 @@ import { Button } from '../../components/Button';
 import { Input } from '../../components/Input';
 import { useToast } from '../../components/Toaster';
 import { GoogleGenAI } from "@google/genai";
+import { getGeminiKey } from '../../services/db';
 
 export const AdminSettings: React.FC = () => {
     const { toast } = useToast();
@@ -11,6 +12,9 @@ export const AdminSettings: React.FC = () => {
     // DB Configuration State
     const [sbUrl, setSbUrl] = useState(localStorage.getItem('VITE_SUPABASE_URL') || '');
     const [sbKey, setSbKey] = useState(localStorage.getItem('VITE_SUPABASE_ANON_KEY') || '');
+
+    // AI Configuration State
+    const [geminiKey, setGeminiKey] = useState(localStorage.getItem('SALONI_GEMINI_KEY') || '');
 
     // External Integration State
     const [gstKey, setGstKey] = useState(localStorage.getItem('SALONI_GST_API_KEY') || '');
@@ -51,18 +55,25 @@ export const AdminSettings: React.FC = () => {
         }
     };
 
+    const getMaskedKey = (key: string) => {
+        if (!key) return "Not Configured";
+        if (key.length < 8) return "Invalid Length";
+        return `${key.substring(0, 4)}...${key.substring(key.length - 4)}`;
+    };
+
     const handleTestAiConnection = async () => {
         setIsTestingAi(true);
         setAiErrorType('NONE');
         try {
-            const apiKey = process.env.API_KEY;
+            // Use local state if present (for testing new input), otherwise helper
+            const apiKey = geminiKey || getGeminiKey();
             
             if (!apiKey) throw new Error("API Key environment variable is missing.");
             
             // Common configuration errors check
             if (apiKey.includes("your_google_gemini_key") || apiKey.includes("API_KEY")) {
                  setAiErrorType('INVALID_KEY');
-                 throw new Error("Placeholder detected. Please update your environment variable with a real key.");
+                 throw new Error("Placeholder detected. Please update your key.");
             }
 
             const ai = new GoogleGenAI({ apiKey });
@@ -94,6 +105,13 @@ export const AdminSettings: React.FC = () => {
     };
 
     const handleSaveConfig = () => {
+        // Save Gemini Key
+        if (geminiKey) {
+            localStorage.setItem('SALONI_GEMINI_KEY', geminiKey);
+        } else {
+            localStorage.removeItem('SALONI_GEMINI_KEY');
+        }
+
         // Save External Integrations
         localStorage.setItem('SALONI_GST_API_KEY', gstKey);
         localStorage.setItem('SALONI_GST_API_URL', gstUrl);
@@ -197,36 +215,46 @@ export const AdminSettings: React.FC = () => {
                                 </div>
                             ) : (
                                 <div>
-                                    <div className="flex justify-between items-start">
-                                        <div>
-                                            <div className="flex items-center gap-2 mb-3">
-                                                <span className={`w-3 h-3 rounded-full ${process.env.API_KEY ? 'bg-green-500' : 'bg-yellow-500'}`}></span>
-                                                <h4 className="font-bold text-gray-800">Manual Environment Configuration</h4>
-                                            </div>
-                                            <p className="text-sm text-gray-500 mb-2">
-                                                Status: {process.env.API_KEY ? <span className="text-green-600 font-bold">Configured & Active</span> : <span className="text-red-500 font-bold">Missing Key</span>}
-                                            </p>
-                                            <div className="bg-gray-100 p-3 rounded font-mono text-xs text-gray-600 mb-4 inline-block max-w-md">
-                                                To secure your key, set it in <strong>.env</strong> or Vercel Settings. Do NOT hardcode it.
-                                            </div>
-                                            {aiErrorType === 'INVALID_KEY' && (
-                                                <div className="bg-red-50 p-4 rounded-lg border border-red-200 text-xs text-red-800">
-                                                    <strong>❌ API KEY REVOKED OR INVALID</strong><br/>
-                                                    Your key has been locked (likely due to exposure).<br/>
-                                                    1. <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer" className="underline font-bold">Generate a new key here</a>.<br/>
-                                                    2. Update your Vercel/Netlify Environment Variables.<br/>
-                                                    3. Redeploy the application.
+                                    <div className="flex flex-col gap-4">
+                                        <div className="flex justify-between items-start">
+                                            <div>
+                                                <div className="flex items-center gap-2 mb-3">
+                                                    <span className={`w-3 h-3 rounded-full ${getGeminiKey() ? 'bg-green-500' : 'bg-yellow-500'}`}></span>
+                                                    <h4 className="font-bold text-gray-800">Manual Key Configuration</h4>
                                                 </div>
-                                            )}
-                                            <div className="text-[10px] text-gray-400 mt-2">
-                                                Security Tip: Restrict this key to your domain (e.g., salonisales.com) in Google Cloud Console.
+                                                <p className="text-sm text-gray-500 mb-2">
+                                                    Active Key: <span className="font-mono bg-gray-100 px-2 py-1 rounded text-xs">{getMaskedKey(getGeminiKey())}</span>
+                                                </p>
+                                                <div className="bg-gray-100 p-3 rounded font-mono text-xs text-gray-600 mb-4 inline-block max-w-md">
+                                                    {getGeminiKey() ? '✅ API Key detected.' : '⚠️ Key missing.'} 
+                                                </div>
+                                                {aiErrorType === 'INVALID_KEY' && (
+                                                    <div className="bg-red-50 p-4 rounded-lg border border-red-200 text-xs text-red-800">
+                                                        <strong>❌ API KEY REVOKED OR INVALID</strong><br/>
+                                                        Your key has been locked (likely due to exposure).<br/>
+                                                        1. <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer" className="underline font-bold">Generate a new key here</a>.<br/>
+                                                        2. Paste it below and click 'Save Configuration'.
+                                                    </div>
+                                                )}
                                             </div>
-                                        </div>
-                                        {process.env.API_KEY && (
                                             <Button size="sm" variant="outline" onClick={handleTestAiConnection} disabled={isTestingAi} className="border-purple-200 text-purple-700 hover:bg-purple-50">
                                                 {isTestingAi ? 'Verifying...' : '⚡ Test Connection'}
                                             </Button>
-                                        )}
+                                        </div>
+                                        
+                                        <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                                            <Input 
+                                                label="Google Gemini API Key" 
+                                                placeholder="AIza..." 
+                                                type="password"
+                                                value={geminiKey}
+                                                onChange={(e) => setGeminiKey(e.target.value)}
+                                                className="bg-white"
+                                            />
+                                            <p className="text-xs text-gray-500 mt-2 italic">
+                                                Paste your key here if you cannot access environment variables. Saved to browser storage.
+                                            </p>
+                                        </div>
                                     </div>
                                 </div>
                             )}

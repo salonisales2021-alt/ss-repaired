@@ -30,6 +30,11 @@ import {
 
 // --- HELPERS ---
 
+export const getGeminiKey = (): string => {
+    // Priority: LocalStorage (Runtime Override) > Environment Variable (Build time)
+    return localStorage.getItem('SALONI_GEMINI_KEY') || process.env.API_KEY || '';
+};
+
 export const handleAiError = async (error: any): Promise<boolean> => {
     console.error("AI Error:", error);
     if (error.message?.includes("429") || error.message?.includes("quota")) {
@@ -467,4 +472,3 @@ export const db = {
         };
     }
 };
-    

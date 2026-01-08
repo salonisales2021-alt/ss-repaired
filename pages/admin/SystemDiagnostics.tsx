@@ -5,6 +5,7 @@ import { Button } from '../../components/Button';
 import { useToast } from '../../components/Toaster';
 import { verifyGST } from '../../services/gstService';
 import { isLiveData } from '../../services/supabaseClient';
+import { getGeminiKey } from '../../services/db';
 
 interface LogEntry {
     id: string;
@@ -58,7 +59,10 @@ export const SystemDiagnostics: React.FC = () => {
         }]);
 
         try {
-            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+            const apiKey = getGeminiKey();
+            if (!apiKey) throw new Error("API Key Missing. Configure in Admin Settings.");
+            
+            const ai = new GoogleGenAI({ apiKey });
             const result = await fn(ai);
             const endTime = performance.now();
             const latency = Math.round(endTime - startTime);
@@ -206,11 +210,11 @@ export const SystemDiagnostics: React.FC = () => {
                     </div>
                 </div>
 
-                <div className={`p-6 rounded-xl border-l-4 shadow-sm flex flex-col justify-between ${process.env.API_KEY ? 'bg-purple-50 border-purple-500' : 'bg-red-50 border-red-500'}`}>
+                <div className={`p-6 rounded-xl border-l-4 shadow-sm flex flex-col justify-between ${getGeminiKey() ? 'bg-purple-50 border-purple-500' : 'bg-red-50 border-red-500'}`}>
                     <div>
                         <h3 className="text-xs font-black uppercase tracking-widest text-gray-500 mb-1">AI Engine (Gemini)</h3>
-                        <p className={`text-2xl font-black ${process.env.API_KEY ? 'text-purple-700' : 'text-red-700'}`}>
-                            {process.env.API_KEY ? 'CONNECTED' : 'KEY MISSING'}
+                        <p className={`text-2xl font-black ${getGeminiKey() ? 'text-purple-700' : 'text-red-700'}`}>
+                            {getGeminiKey() ? 'CONNECTED' : 'KEY MISSING'}
                         </p>
                     </div>
                     <div className="mt-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
