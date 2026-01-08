@@ -1,14 +1,17 @@
+
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
-import { Link, Outlet, useLocation, Navigate } from 'react-router-dom';
+import { Link, Outlet, useLocation, Navigate, useNavigate } from 'react-router-dom';
 import { Button } from '../../components/Button';
 import { NotificationCenter } from '../../components/NotificationCenter';
 import { BrandLogo } from '../../components/BrandLogo';
 import { UserRole } from '../../types';
+import { isLiveData } from '../../services/supabaseClient';
 
 export const AdminLayout: React.FC = () => {
     const { logout, user } = useApp();
     const location = useLocation();
+    const navigate = useNavigate();
     const [isSidebarOpen, setSidebarOpen] = useState(false);
 
     if (!user || (user.role !== UserRole.ADMIN && user.role !== UserRole.SUPER_ADMIN && user.role !== UserRole.DISPATCH)) {
@@ -67,6 +70,18 @@ export const AdminLayout: React.FC = () => {
                     </div>
                 </div>
             </header>
+
+            {!isLiveData && (
+                <div className="bg-red-600 text-white text-xs font-bold text-center py-2 px-4 flex justify-between items-center">
+                    <span>⚠️ Database running in SIMULATION mode. Data will vanish on refresh.</span>
+                    <button 
+                        onClick={() => navigate('/admin/settings')} 
+                        className="bg-white text-red-600 px-3 py-1 rounded-full uppercase tracking-wider text-[10px] hover:bg-red-50"
+                    >
+                        Connect Live DB
+                    </button>
+                </div>
+            )}
 
             <div className="flex flex-1 overflow-hidden relative">
                 <aside className={`

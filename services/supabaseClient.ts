@@ -1,3 +1,4 @@
+
 import { createClient } from '@supabase/supabase-js';
 
 // Access environment variables safely, checking both import.meta.env and process.env
@@ -41,13 +42,27 @@ const SUPABASE_ANON_KEY =
     (getEnv('SUPABASE_ANON_KEY') as string) || 
     '';
 
-// Check if keys are valid (simple length check to avoid placeholders)
-export const isLiveData = !!(SUPABASE_URL && SUPABASE_ANON_KEY && SUPABASE_URL.startsWith('http'));
+// Strict validation of URL format
+const isValidUrl = (url: string) => {
+    try {
+        new URL(url);
+        return url.startsWith('http');
+    } catch {
+        return false;
+    }
+};
+
+// Check if keys are valid
+export const isLiveData = !!(SUPABASE_URL && SUPABASE_ANON_KEY && isValidUrl(SUPABASE_URL));
 
 if (isLiveData) {
     console.log("✅ CONNECTED TO SUPABASE LIVE DB");
+    console.log("Endpoint:", SUPABASE_URL);
 } else {
     console.warn("⚠️ SUPABASE CREDENTIALS MISSING - App running in local fallback mode.");
+    if (!SUPABASE_URL) console.warn("Missing: VITE_SUPABASE_URL");
+    else if (!isValidUrl(SUPABASE_URL)) console.warn("Invalid URL: VITE_SUPABASE_URL");
+    if (!SUPABASE_ANON_KEY) console.warn("Missing: VITE_SUPABASE_ANON_KEY");
 }
 
 export const supabase = createClient(

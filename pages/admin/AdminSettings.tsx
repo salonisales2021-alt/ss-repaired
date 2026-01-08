@@ -5,6 +5,7 @@ import { Input } from '../../components/Input';
 import { useToast } from '../../components/Toaster';
 import { GoogleGenAI } from "@google/genai";
 import { getGeminiKey } from '../../services/db';
+import { isLiveData } from '../../services/supabaseClient';
 
 export const AdminSettings: React.FC = () => {
     const { toast } = useToast();
@@ -152,14 +153,20 @@ export const AdminSettings: React.FC = () => {
                 <div className="p-8 space-y-10">
                     
                     {/* LIVE DB CONNECTION SECTION */}
-                    <section className="bg-blue-50/50 -mx-8 px-8 py-8 border-b border-blue-100">
+                    <section className={`-mx-8 px-8 py-8 border-b ${isLiveData ? 'bg-green-50/50 border-green-100' : 'bg-red-50/50 border-red-100'}`}>
                         <div className="flex items-center gap-3 mb-6">
-                            <div className="p-2 bg-blue-100 text-blue-600 rounded-lg">
+                            <div className={`p-2 rounded-lg ${isLiveData ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" /></svg>
                             </div>
                             <div>
-                                <h3 className="text-sm font-black text-blue-800 uppercase tracking-[0.2em]">Live Database Connection</h3>
-                                <p className="text-xs text-blue-600 mt-1">Connect to your Supabase project to enable persistent data storage.</p>
+                                <h3 className={`text-sm font-black uppercase tracking-[0.2em] ${isLiveData ? 'text-green-800' : 'text-red-800'}`}>
+                                    {isLiveData ? 'Live Database Active' : 'Database Disconnected'}
+                                </h3>
+                                <p className={`text-xs mt-1 ${isLiveData ? 'text-green-600' : 'text-red-600'}`}>
+                                    {isLiveData 
+                                        ? 'Connected to Supabase. Data is being saved securely.' 
+                                        : 'App is running in Simulation Mode (Mock Data). Connect Supabase to go live.'}
+                                </p>
                             </div>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -179,6 +186,17 @@ export const AdminSettings: React.FC = () => {
                                 className="bg-white"
                             />
                         </div>
+                        {!isLiveData && (
+                            <div className="mt-4 text-xs text-gray-500 bg-white p-3 rounded border border-gray-200">
+                                <strong>How to get keys:</strong> 
+                                <ol className="list-decimal pl-4 mt-1 space-y-1">
+                                    <li>Go to <a href="https://supabase.com" target="_blank" className="text-blue-600 underline">Supabase Dashboard</a> and create a project.</li>
+                                    <li>Go to Project Settings → API.</li>
+                                    <li>Copy <strong>Project URL</strong> and <strong>anon public key</strong> here.</li>
+                                    <li>Click "Save Configuration" below.</li>
+                                </ol>
+                            </div>
+                        )}
                     </section>
 
                     {/* AI STUDIO INTEGRATION */}
