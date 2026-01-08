@@ -1,3 +1,4 @@
+
 // @ts-nocheck
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
@@ -5,7 +6,7 @@ import { Button } from '../../components/Button';
 import { GoogleGenAI } from "@google/genai";
 import { useLanguage } from '../../context/LanguageContext';
 import { Product } from '../../types';
-import { db, handleAiError } from '../../services/db';
+import { db, handleAiError, getGeminiKey } from '../../services/db';
 import { KeyGate } from '../../components/KeyGate';
 
 export const DesignStudio: React.FC = () => {
@@ -47,10 +48,9 @@ export const DesignStudio: React.FC = () => {
                 }
 
                 try {
-                    // FIX: Ensure API Key is a string, providing a fallback if undefined
-                    const apiKey = process.env.API_KEY || ''; 
+                    const apiKey = getGeminiKey();
                     if (!apiKey) {
-                        throw new Error("API Key is missing. Please configure VITE_API_KEY or API_KEY.");
+                        throw new Error("API Key is missing. Please configure it in Settings.");
                     }
 
                     const ai = new GoogleGenAI({ apiKey });

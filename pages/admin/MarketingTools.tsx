@@ -1,8 +1,9 @@
+
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { Button } from '../../components/Button';
 import { GoogleGenAI } from "@google/genai";
-import { db, handleAiError } from '../../services/db';
+import { db, handleAiError, getGeminiKey } from '../../services/db';
 import { KeyGate } from '../../components/KeyGate';
 
 export const MarketingTools: React.FC = () => {
@@ -40,7 +41,7 @@ export const MarketingTools: React.FC = () => {
                 try {
                     setProgress('Initializing AI Video Engine (Veo)...');
                     // Ensure key exists
-                    const apiKey = process.env.API_KEY;
+                    const apiKey = getGeminiKey();
                     if (!apiKey) {
                         throw new Error("API Key is missing. Please select a key via the AI Studio button or configure env vars.");
                     }

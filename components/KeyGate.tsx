@@ -1,6 +1,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { Button } from './Button';
+import { getGeminiKey } from '../services/db';
+import { useNavigate } from 'react-router-dom';
 
 interface KeyGateProps {
   children: React.ReactNode;
@@ -10,17 +12,29 @@ interface KeyGateProps {
 
 /**
  * KeyGate ensures that premium AI features are only accessible after 
- * the user has selected a valid API key via the AI Studio dialog.
+ * the user has a valid API key (Env var, LocalStorage, or AI Studio selection).
  */
 export const KeyGate: React.FC<KeyGateProps> = ({ children, featureName, onKeySelected }) => {
   const [hasKey, setHasKey] = useState<boolean>(false);
   const [checking, setChecking] = useState<boolean>(true);
+  const navigate = useNavigate();
 
   const checkKey = async () => {
+    // 1. Check if we have a key in storage or env (The seamless path)
+    const storedKey = getGeminiKey();
+    if (storedKey && storedKey.length > 10) {
+        setHasKey(true);
+        setChecking(false);
+        return;
+    }
+
+    // 2. Fallback: Check AI Studio Bridge (Project IDX)
     const aistudio = (window as any).aistudio;
     if (aistudio?.hasSelectedApiKey) {
       const selected = await aistudio.hasSelectedApiKey();
-      setHasKey(selected);
+      if (selected) {
+          setHasKey(true);
+      }
     }
     setChecking(false);
   };
@@ -33,9 +47,13 @@ export const KeyGate: React.FC<KeyGateProps> = ({ children, featureName, onKeySe
     const aistudio = (window as any).aistudio;
     if (aistudio?.openSelectKey) {
       await aistudio.openSelectKey();
-      // Assume success as per instructions to avoid race conditions
       setHasKey(true);
       if (onKeySelected) onKeySelected();
+    } else {
+        // Redirect to settings if AI Studio bridge isn't available
+        if (confirm("No direct Google Cloud link detected. Go to Settings to paste your API Key manually?")) {
+            navigate('/admin/settings');
+        }
     }
   };
 
@@ -48,11 +66,13 @@ export const KeyGate: React.FC<KeyGateProps> = ({ children, featureName, onKeySe
         <div>
           <h3 className="font-bold text-gray-800">{featureName} Requires Access</h3>
           <p className="text-xs text-gray-500 max-w-xs mx-auto mt-1">
-            This premium AI feature requires a valid API key from a paid GCP project. 
-            <a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" rel="noreferrer" className="text-rani-600 underline ml-1">Learn about billing</a>.
+            This premium AI feature requires a valid Gemini API key.
           </p>
         </div>
-        <Button onClick={handleSelectKey} size="sm" className="px-8">Select API Key</Button>
+        <div className="flex gap-2">
+            <Button onClick={handleSelectKey} size="sm" className="px-6">Connect Key</Button>
+            <Button onClick={() => navigate('/admin/settings')} variant="outline" size="sm">Open Settings</Button>
+        </div>
       </div>
     );
   }

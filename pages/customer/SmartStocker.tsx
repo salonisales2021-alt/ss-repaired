@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { Button } from '../../components/Button';
@@ -6,7 +7,7 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { useLanguage } from '../../context/LanguageContext';
 import { Product, ProductVariant } from '../../types';
 import { useNavigate } from 'react-router-dom';
-import { parseAIJson } from '../../services/db'; // Import utility
+import { parseAIJson, getGeminiKey, handleAiError } from '../../services/db';
 
 interface BundleItem {
     productId: string;
@@ -41,9 +42,9 @@ export const SmartStocker: React.FC = () => {
         setStrategy('');
 
         try {
-            const apiKey = process.env.API_KEY;
+            const apiKey = getGeminiKey();
             if (!apiKey) {
-                alert("API Key is missing. AI features disabled.");
+                alert("API Key is missing. Please configure it in Admin Settings or use the Connect button.");
                 setIsGenerating(false);
                 return;
             }
@@ -133,8 +134,7 @@ export const SmartStocker: React.FC = () => {
             }
 
         } catch (error) {
-            console.error(error);
-            alert("AI Planning failed. Please try again.");
+            await handleAiError(error);
         } finally {
             setIsGenerating(false);
         }
