@@ -13,6 +13,7 @@ import { Footer } from './components/Footer';
 import { Button } from './components/Button';
 import { TutorialOverlay } from './components/TutorialOverlay';
 import { InstallPwaPrompt } from './components/InstallPwaPrompt';
+import { DemoControls } from './components/DemoControls';
 import { UserRole } from './types';
 
 // -- LAZY LOADED COMPONENTS --
@@ -127,6 +128,7 @@ function App() {
         <AppProvider>
           <AppSecurity />
           <HashRouter>
+            <DemoControls />
             <Routes>
               {/* Public / Customer Routes */}
               <Route path="/" element={<CustomerLayout />}>
