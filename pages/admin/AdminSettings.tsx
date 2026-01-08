@@ -22,6 +22,7 @@ export const AdminSettings: React.FC = () => {
     const [aiStudioAvailable, setAiStudioAvailable] = useState(false);
     const [aiKeyLinked, setAiKeyLinked] = useState(false);
     const [isTestingAi, setIsTestingAi] = useState(false);
+    const [aiErrorType, setAiErrorType] = useState<'NONE' | 'INVALID_KEY' | 'OTHER'>('NONE');
 
     useEffect(() => {
         // Check for AI Studio Integration (IDX/Project IDX environment)
@@ -52,9 +53,17 @@ export const AdminSettings: React.FC = () => {
 
     const handleTestAiConnection = async () => {
         setIsTestingAi(true);
+        setAiErrorType('NONE');
         try {
             const apiKey = process.env.API_KEY;
+            
             if (!apiKey) throw new Error("API Key environment variable is missing.");
+            
+            // Common configuration errors check
+            if (apiKey.includes("your_google_gemini_key") || apiKey.includes("API_KEY")) {
+                 setAiErrorType('INVALID_KEY');
+                 throw new Error("Placeholder detected. Please update your environment variable with a real key.");
+            }
 
             const ai = new GoogleGenAI({ apiKey });
             const response = await ai.models.generateContent({
@@ -69,7 +78,16 @@ export const AdminSettings: React.FC = () => {
             }
         } catch (e: any) {
             console.error(e);
-            toast(`❌ Connection Failed: ${e.message || "Invalid API Key"}`, "error");
+            let msg = e.message || "Invalid API Key";
+            
+            if (e.toString().includes("400") || e.toString().includes("API_KEY_INVALID")) {
+                setAiErrorType('INVALID_KEY');
+                msg = "API Key is Invalid or Locked by Google.";
+            } else {
+                setAiErrorType('OTHER');
+            }
+            
+            toast(`❌ Connection Failed: ${msg}`, "error");
         } finally {
             setIsTestingAi(false);
         }
@@ -185,15 +203,24 @@ export const AdminSettings: React.FC = () => {
                                                 <span className={`w-3 h-3 rounded-full ${process.env.API_KEY ? 'bg-green-500' : 'bg-yellow-500'}`}></span>
                                                 <h4 className="font-bold text-gray-800">Manual Environment Configuration</h4>
                                             </div>
-                                            <p className="text-sm text-gray-500 mb-4">
-                                                Server-side API Key detected.
+                                            <p className="text-sm text-gray-500 mb-2">
+                                                Status: {process.env.API_KEY ? <span className="text-green-600 font-bold">Configured & Active</span> : <span className="text-red-500 font-bold">Missing Key</span>}
                                             </p>
-                                            <div className="bg-gray-100 p-3 rounded font-mono text-xs text-gray-600 mb-4 inline-block">
-                                                {process.env.API_KEY ? '✅ API_KEY is configured.' : '⚠️ API_KEY is missing.'}
+                                            <div className="bg-gray-100 p-3 rounded font-mono text-xs text-gray-600 mb-4 inline-block max-w-md">
+                                                To secure your key, set it in <strong>.env</strong> or Vercel Settings. Do NOT hardcode it.
                                             </div>
-                                            <p className="text-xs text-gray-400">
-                                                To change this, update your environment variables in Vercel/Netlify.
-                                            </p>
+                                            {aiErrorType === 'INVALID_KEY' && (
+                                                <div className="bg-red-50 p-4 rounded-lg border border-red-200 text-xs text-red-800">
+                                                    <strong>❌ API KEY REVOKED OR INVALID</strong><br/>
+                                                    Your key has been locked (likely due to exposure).<br/>
+                                                    1. <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer" className="underline font-bold">Generate a new key here</a>.<br/>
+                                                    2. Update your Vercel/Netlify Environment Variables.<br/>
+                                                    3. Redeploy the application.
+                                                </div>
+                                            )}
+                                            <div className="text-[10px] text-gray-400 mt-2">
+                                                Security Tip: Restrict this key to your domain (e.g., salonisales.com) in Google Cloud Console.
+                                            </div>
                                         </div>
                                         {process.env.API_KEY && (
                                             <Button size="sm" variant="outline" onClick={handleTestAiConnection} disabled={isTestingAi} className="border-purple-200 text-purple-700 hover:bg-purple-50">
