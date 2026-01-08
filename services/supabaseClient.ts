@@ -30,17 +30,21 @@ const getEnv = (key: string) => {
 };
 
 // Retrieve Credentials - Priority: LocalStorage > Env Vars (VITE_ prefixed) > Env Vars (Standard)
-const SUPABASE_URL = 
+const clean = (str: string | undefined | null) => str ? str.trim() : '';
+
+const SUPABASE_URL = clean(
     localStorage.getItem('VITE_SUPABASE_URL') || 
     (getEnv('VITE_SUPABASE_URL') as string) || 
     (getEnv('SUPABASE_URL') as string) || 
-    '';
+    ''
+);
 
-const SUPABASE_ANON_KEY = 
+const SUPABASE_ANON_KEY = clean(
     localStorage.getItem('VITE_SUPABASE_ANON_KEY') || 
     (getEnv('VITE_SUPABASE_ANON_KEY') as string) || 
     (getEnv('SUPABASE_ANON_KEY') as string) || 
-    '';
+    ''
+);
 
 // Strict validation of URL format
 const isValidUrl = (url: string) => {
@@ -69,3 +73,29 @@ export const supabase = createClient(
     isLiveData ? SUPABASE_URL : 'https://placeholder.supabase.co', 
     isLiveData ? SUPABASE_ANON_KEY : 'placeholder'
 );
+
+// Helper to verify connection credentials without reloading
+export const testConnection = async (url: string, key: string) => {
+    if (!url || !key) return { success: false, error: "Missing credentials" };
+    if (!isValidUrl(url)) return { success: false, error: "Invalid URL format" };
+    
+    try {
+        const tempClient = createClient(url, key);
+        // Try to fetch 1 row from 'products' (assumes schema exists)
+        // Using 'head' to minimize data transfer
+        const { error } = await tempClient.from('products').select('id', { count: 'exact', head: true });
+        
+        if (error) {
+            // If table doesn't exist (404/PGRST204) but auth worked, it's partial success (connected but no schema)
+            // But usually we want to catch auth errors
+            if (error.code === 'PGRST116' || error.message.includes('relation "public.products" does not exist')) {
+                 return { success: true, warning: "Connected, but 'products' table missing. Run Schema Script." };
+            }
+            throw error;
+        }
+        
+        return { success: true };
+    } catch (e: any) {
+        return { success: false, error: e.message || "Connection failed" };
+    }
+};

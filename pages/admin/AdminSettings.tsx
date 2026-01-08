@@ -5,7 +5,7 @@ import { Input } from '../../components/Input';
 import { useToast } from '../../components/Toaster';
 import { GoogleGenAI } from "@google/genai";
 import { getGeminiKey } from '../../services/db';
-import { isLiveData } from '../../services/supabaseClient';
+import { isLiveData, testConnection } from '../../services/supabaseClient';
 
 export const AdminSettings: React.FC = () => {
     const { toast } = useToast();
@@ -13,6 +13,7 @@ export const AdminSettings: React.FC = () => {
     // DB Configuration State
     const [sbUrl, setSbUrl] = useState(localStorage.getItem('VITE_SUPABASE_URL') || '');
     const [sbKey, setSbKey] = useState(localStorage.getItem('VITE_SUPABASE_ANON_KEY') || '');
+    const [isTestingDb, setIsTestingDb] = useState(false);
 
     // AI Configuration State
     const [geminiKey, setGeminiKey] = useState(localStorage.getItem('SALONI_GEMINI_KEY') || '');
@@ -60,6 +61,26 @@ export const AdminSettings: React.FC = () => {
         if (!key) return "Not Configured";
         if (key.length < 8) return "Invalid Length";
         return `${key.substring(0, 4)}...${key.substring(key.length - 4)}`;
+    };
+
+    const handleTestDbConnection = async () => {
+        if (!sbUrl || !sbKey) {
+            toast("Please enter both Supabase URL and Key", "warning");
+            return;
+        }
+        setIsTestingDb(true);
+        const result = await testConnection(sbUrl.trim(), sbKey.trim());
+        setIsTestingDb(false);
+
+        if (result.success) {
+            if (result.warning) {
+                toast("⚠️ " + result.warning, "warning");
+            } else {
+                toast("✅ Connection Successful!", "success");
+            }
+        } else {
+            toast("❌ " + result.error, "error");
+        }
     };
 
     const handleTestAiConnection = async () => {
@@ -121,12 +142,13 @@ export const AdminSettings: React.FC = () => {
 
         // Save DB Config & Handle Reload
         const oldUrl = localStorage.getItem('VITE_SUPABASE_URL');
+        const oldKey = localStorage.getItem('VITE_SUPABASE_ANON_KEY');
         let needsReload = false;
 
         if (sbUrl && sbKey) {
-            localStorage.setItem('VITE_SUPABASE_URL', sbUrl);
-            localStorage.setItem('VITE_SUPABASE_ANON_KEY', sbKey);
-            if (oldUrl !== sbUrl) needsReload = true;
+            localStorage.setItem('VITE_SUPABASE_URL', sbUrl.trim());
+            localStorage.setItem('VITE_SUPABASE_ANON_KEY', sbKey.trim());
+            if (oldUrl !== sbUrl.trim() || oldKey !== sbKey.trim()) needsReload = true;
         } else {
             if (oldUrl) {
                 localStorage.removeItem('VITE_SUPABASE_URL');
@@ -169,7 +191,7 @@ export const AdminSettings: React.FC = () => {
                                 </p>
                             </div>
                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-end">
                             <Input 
                                 label="Supabase URL" 
                                 placeholder="https://your-project.supabase.co" 
@@ -186,6 +208,13 @@ export const AdminSettings: React.FC = () => {
                                 className="bg-white"
                             />
                         </div>
+                        
+                        <div className="flex justify-end mt-4">
+                            <Button size="sm" variant="outline" onClick={handleTestDbConnection} disabled={isTestingDb} className="border-gray-300 text-gray-700 hover:bg-white">
+                                {isTestingDb ? 'Verifying...' : '⚡ Test Connection'}
+                            </Button>
+                        </div>
+
                         {!isLiveData && (
                             <div className="mt-4 text-xs text-gray-500 bg-white p-3 rounded border border-gray-200">
                                 <strong>How to get keys:</strong> 
@@ -193,7 +222,7 @@ export const AdminSettings: React.FC = () => {
                                     <li>Go to <a href="https://supabase.com" target="_blank" className="text-blue-600 underline">Supabase Dashboard</a> and create a project.</li>
                                     <li>Go to Project Settings → API.</li>
                                     <li>Copy <strong>Project URL</strong> and <strong>anon public key</strong> here.</li>
-                                    <li>Click "Save Configuration" below.</li>
+                                    <li>Click "Test Connection" to verify, then "Save Configuration".</li>
                                 </ol>
                             </div>
                         )}
