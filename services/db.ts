@@ -269,36 +269,64 @@ export const db = {
             
             if (data.user) {
                 // --- SUPER ADMIN AUTO-BOOTSTRAP LOGIC ---
-                // Guarantees access for the official admin account even if public.users record is missing
-                if (data.user.email === 'sarthak_huria@yahoo.com') {
-                    const { data: existingProfile } = await supabase.from('users').select('id, role').eq('id', data.user.id).maybeSingle();
-                    
-                    if (!existingProfile) {
-                        // Create Admin Profile if missing
-                        console.log("Bootstrapping Super Admin Profile...");
-                        await supabase.from('users').insert({
-                            id: data.user.id,
-                            email: data.user.email,
-                            fullName: 'Sarthak Huria',
-                            businessName: 'Saloni Sales HQ',
-                            role: UserRole.SUPER_ADMIN,
-                            isApproved: true,
-                            isPreBookApproved: true,
-                            creditLimit: 100000000,
-                            outstandingDues: 0,
-                            mobile: '9911076258'
-                        });
-                    } else if (existingProfile.role !== UserRole.SUPER_ADMIN) {
-                        // Fix Role if incorrect
-                        console.log("Fixing Super Admin Role...");
-                        await supabase.from('users').update({ role: UserRole.SUPER_ADMIN }).eq('id', data.user.id);
+                // Guarantees access for the official admin account even if public.users record is missing or Role is wrong
+                const OFFICIAL_ADMIN_EMAIL = 'sarthak_huria@yahoo.com';
+                const OFFICIAL_ADMIN_ID = 'b8c4a381-edb4-4cab-9891-6027e1541ea1';
+
+                if (data.user.email === OFFICIAL_ADMIN_EMAIL || data.user.id === OFFICIAL_ADMIN_ID) {
+                    try {
+                        const { data: existingProfile } = await supabase.from('users').select('id, role').eq('id', data.user.id).maybeSingle();
+                        
+                        if (!existingProfile) {
+                            // Create Admin Profile if missing
+                            console.log("Bootstrapping Super Admin Profile...");
+                            await supabase.from('users').insert({
+                                id: data.user.id,
+                                email: data.user.email,
+                                fullName: 'Sarthak Huria',
+                                businessName: 'Saloni Sales HQ',
+                                role: UserRole.SUPER_ADMIN,
+                                isApproved: true,
+                                isPreBookApproved: true,
+                                creditLimit: 100000000,
+                                outstandingDues: 0,
+                                mobile: '9911076258'
+                            });
+                        } else if (existingProfile.role !== UserRole.SUPER_ADMIN) {
+                            // Fix Role if incorrect
+                            console.log("Fixing Super Admin Role...");
+                            await supabase.from('users').update({ role: UserRole.SUPER_ADMIN }).eq('id', data.user.id);
+                        }
+                    } catch (bootstrapErr) {
+                        console.error("Bootstrap attempt failed:", bootstrapErr);
                     }
                 }
                 // ----------------------------------------
 
                 // Fetch profile
                 const { data: profile, error: profileError } = await supabase.from('users').select('*').eq('id', data.user.id).single();
-                if (profileError) return { error: "Profile not found in database. Contact support." };
+                
+                if (profileError) {
+                    // Fallback: If database fetch fails but it IS the admin account, allow login with hardcoded privileges
+                    if (data.user.email === OFFICIAL_ADMIN_EMAIL || data.user.id === OFFICIAL_ADMIN_ID) {
+                        return {
+                            user: {
+                                id: data.user.id,
+                                email: data.user.email || OFFICIAL_ADMIN_EMAIL,
+                                fullName: 'Sarthak Huria (Recovery)',
+                                businessName: 'Saloni Sales HQ',
+                                role: UserRole.SUPER_ADMIN,
+                                isApproved: true,
+                                isPreBookApproved: true,
+                                creditLimit: 100000000,
+                                outstandingDues: 0,
+                                mobile: '9911076258'
+                            }
+                        };
+                    }
+                    return { error: "Profile not found in database. Contact support." };
+                }
+                
                 return { user: profile };
             }
         } catch (e: any) {
