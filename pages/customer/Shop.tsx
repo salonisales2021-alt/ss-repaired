@@ -9,7 +9,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { CatalogNarrator } from '../../components/CatalogNarrator';
 
 export const Shop: React.FC = () => {
-  const { addToCart, user, products, calculatePrice } = useApp();
+  const { addToCart, user, products, calculatePrice, refreshProducts } = useApp();
   const { t } = useLanguage();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -24,6 +24,7 @@ export const Shop: React.FC = () => {
   const [inStockOnly, setInStockOnly] = useState<boolean>(false);
   const [priceRange, setPriceRange] = useState<number>(5000);
   const [showFilters, setShowFilters] = useState(false); // Mobile filter toggle
+  const [isRefreshing, setIsRefreshing] = useState(false);
   
   // Quick Add State
   const [expandedProduct, setExpandedProduct] = useState<Product | null>(null);
@@ -97,6 +98,12 @@ export const Shop: React.FC = () => {
         return matchCat && matchFabric && matchPrice && matchStock;
     });
   }, [products, searchTokens, selectedCategory, selectedFabric, inStockOnly, priceRange]);
+
+  const handleRefresh = async () => {
+      setIsRefreshing(true);
+      await refreshProducts();
+      setTimeout(() => setIsRefreshing(false), 500);
+  };
 
   if (!user) {
     return (
@@ -221,11 +228,20 @@ export const Shop: React.FC = () => {
                 </div>
             </div>
             
-            <select className="bg-white border border-gray-200 text-sm rounded px-3 py-1.5 outline-none focus:border-rani-500 text-gray-600">
-                <option>{t('shop.sortBy')}: Featured</option>
-                <option>Price: Low to High</option>
-                <option>Price: High to Low</option>
-            </select>
+            <div className="flex gap-2 items-center">
+                <button 
+                    onClick={handleRefresh} 
+                    className={`p-2 rounded-full hover:bg-gray-100 text-gray-500 hover:text-rani-600 transition-colors ${isRefreshing ? 'animate-spin' : ''}`}
+                    title="Refresh Catalog"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                </button>
+                <select className="bg-white border border-gray-200 text-sm rounded px-3 py-1.5 outline-none focus:border-rani-500 text-gray-600">
+                    <option>{t('shop.sortBy')}: Featured</option>
+                    <option>Price: Low to High</option>
+                    <option>Price: High to Low</option>
+                </select>
+            </div>
         </div>
 
         {filteredProducts.length === 0 ? (
@@ -233,7 +249,10 @@ export const Shop: React.FC = () => {
                 <div className="text-4xl mb-3">🔍</div>
                 <p className="text-gray-800 font-bold mb-1">No matches found.</p>
                 <p className="text-gray-500 text-sm mb-4">Try checking your spelling or using different keywords.</p>
-                <Button variant="outline" size="sm" onClick={clearFilters}>Reset Filters</Button>
+                <div className="flex gap-2 justify-center">
+                    <Button variant="outline" size="sm" onClick={clearFilters}>Reset Filters</Button>
+                    <Button variant="outline" size="sm" onClick={handleRefresh}>Force Refresh</Button>
+                </div>
             </div>
         ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -348,7 +367,7 @@ export const Shop: React.FC = () => {
                 </div>
             </div>
         </div>
-      )}
+    )}
     </div>
   );
 };

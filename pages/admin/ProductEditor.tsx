@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '../../components/Button';
 import { Input } from '../../components/Input';
 import { ProductCategory, ProductVariant, Product } from '../../types';
@@ -8,15 +8,20 @@ import { useApp } from '../../context/AppContext';
 import { GoogleGenAI } from "@google/genai";
 import { KeyGate } from '../../components/KeyGate';
 import { useToast } from '../../components/Toaster';
+import { useNavigate } from 'react-router-dom';
 
 type Tab = 'Basic Info' | 'Media' | 'Variants' | 'Description';
 
 export const ProductEditor: React.FC = () => {
     const { products, refreshProducts } = useApp();
     const { toast } = useToast();
+    const navigate = useNavigate();
+    
     const [view, setView] = useState<'LIST' | 'FORM'>('LIST');
     const [activeTab, setActiveTab] = useState<Tab>('Basic Info');
     const [searchTerm, setSearchTerm] = useState('');
+    
+    // Form State
     const [editId, setEditId] = useState<string | null>(null);
     const [name, setName] = useState('');
     const [sku, setSku] = useState('');
@@ -28,24 +33,46 @@ export const ProductEditor: React.FC = () => {
     const [images, setImages] = useState<string[]>([]);
     const [video, setVideo] = useState<string>('');
     const [variants, setVariants] = useState<Partial<ProductVariant>[]>([{ id: `v-${Date.now()}`, sizeRange: '', color: '', pricePerPiece: 0, piecesPerSet: 6, stock: 0 }]);
+    
+    // UI State
     const [loading, setLoading] = useState(false);
     const [uploading, setUploading] = useState(false);
+    const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+    
+    // AI State
     const [aiPrompt, setAiPrompt] = useState('Cinematic shot, 4k, fashion runway lighting, slow motion spin showing the dress details');
     const [isGeneratingVideo, setIsGeneratingVideo] = useState(false);
     const [generationProgress, setGenerationProgress] = useState('');
+
+    // Warn before leaving if unsaved changes
+    useEffect(() => {
+        const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+            if (hasUnsavedChanges) {
+                e.preventDefault();
+                e.returnValue = '';
+            }
+        };
+        window.addEventListener('beforeunload', handleBeforeUnload);
+        return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+    }, [hasUnsavedChanges]);
+
+    // Mark as dirty when key fields change
+    useEffect(() => {
+        if (view === 'FORM') setHasUnsavedChanges(true);
+    }, [name, sku, basePrice, images, video, variants]);
 
     const startEdit = (product: Product) => {
         setEditId(product.id); setName(product.name); setSku(product.sku); setDesc(product.description);
         setCategory(product.category); setFabric(product.fabric); setBasePrice(product.basePrice.toString());
         setIsAvailable(product.isAvailable); setImages(product.images); setVideo(product.video || '');
         
-        // Auto-clubbing logic: Sort variants by Color then Size to keep them visually grouped
         const sortedVariants = [...product.variants].sort((a, b) => 
             a.color.localeCompare(b.color) || a.sizeRange.localeCompare(b.sizeRange)
         );
         
         setVariants(sortedVariants.length > 0 ? sortedVariants : [{ id: `v-${Date.now()}`, sizeRange: '', color: '', pricePerPiece: Number(product.basePrice), piecesPerSet: 6, stock: 0 }]);
         setView('FORM');
+        setHasUnsavedChanges(false);
     };
 
     const startCreate = () => {
@@ -53,8 +80,42 @@ export const ProductEditor: React.FC = () => {
         setFabric(''); setBasePrice(''); setIsAvailable(true); setImages([]); setVideo('');
         setVariants([{ id: `v-${Date.now()}`, sizeRange: '', color: '', pricePerPiece: 0, piecesPerSet: 6, stock: 0 }]);
         setView('FORM');
+        setHasUnsavedChanges(false);
     };
 
+    const handleSave = async () => {
+        if (!name || !sku || !basePrice) { toast("Fill in Name, SKU and Price.", "warning"); return; }
+        if (images.length === 0) { toast("At least 1 image is required.", "warning"); return; }
+        
+        setLoading(true);
+        try {
+            const sortedVariants = [...variants].sort((a, b) => 
+                (a.color || '').localeCompare(b.color || '') || 
+                (a.sizeRange || '').localeCompare(b.sizeRange || '')
+            );
+
+            const success = await db.saveProduct({ 
+                id: editId || undefined, name, sku, description: desc, category, fabric, 
+                basePrice: Number(basePrice), images, video, 
+                variants: sortedVariants as ProductVariant[], isAvailable 
+            });
+
+            if (success) {
+                toast("Product published successfully!", "success"); 
+                setHasUnsavedChanges(false);
+                refreshProducts(); 
+                setView('LIST');
+            } else {
+                toast("Database Error: Could not save product.", "error");
+            }
+        } catch (error) { 
+            toast("Unexpected error during save.", "error"); 
+        } finally { 
+            setLoading(false); 
+        }
+    };
+
+    // ... (Keep existing generateDescription, handleGenerateAiVideo, handleDelete, updateVariant, addVariant, removeVariant, duplicateVariant functions exactly as they were in previous version) ...
     const generateDescription = async () => {
         if (!name || !category || !fabric) { toast("Provide Name, Category, and Fabric first.", "warning"); return; }
         setLoading(true);
@@ -106,12 +167,11 @@ export const ProductEditor: React.FC = () => {
 
             if (operation.response?.generatedVideos?.[0]?.video?.uri) {
                 const downloadLink = operation.response.generatedVideos[0].video.uri;
-                // Use the valid apiKey variable here instead of accessing process.env directly again
                 const videoRes = await fetch(`${downloadLink}&key=${apiKey}`);
                 const videoBlob = await videoRes.blob();
                 const url = await db.uploadVideo(videoBlob);
                 setVideo(url);
-                toast("AI Video linked successfully!", "success");
+                toast("AI Video linked successfully! Don't forget to SAVE.", "success");
             }
         } catch (error: any) {
             const handled = await handleAiError(error);
@@ -119,28 +179,6 @@ export const ProductEditor: React.FC = () => {
         } finally {
             setIsGeneratingVideo(false); setGenerationProgress('');
         }
-    };
-
-    const handleSave = async () => {
-        if (!name || !sku || !basePrice) { toast("Fill in required fields.", "warning"); return; }
-        setLoading(true);
-        try {
-            // Auto-club variants before saving
-            // Sort by Color then by Size Range to keep them visually grouped in the database
-            const sortedVariants = [...variants].sort((a, b) => 
-                (a.color || '').localeCompare(b.color || '') || 
-                (a.sizeRange || '').localeCompare(b.sizeRange || '')
-            );
-
-            await db.saveProduct({ 
-                id: editId || undefined, name, sku, description: desc, category, fabric, 
-                basePrice: Number(basePrice), images, video, 
-                variants: sortedVariants as ProductVariant[], isAvailable 
-            });
-            toast("Product catalog updated.", "success"); 
-            refreshProducts(); 
-            setView('LIST');
-        } catch (error) { toast("Error saving to database.", "error"); } finally { setLoading(false); }
     };
 
     const handleDelete = async (id: string) => {
@@ -185,7 +223,7 @@ export const ProductEditor: React.FC = () => {
         const newVariants = [...variants];
         newVariants.splice(index + 1, 0, newVar);
         setVariants(newVariants);
-        toast("Variant duplicated. Update details as needed.", "info");
+        toast("Variant duplicated.", "info");
     };
 
     if (view === 'LIST') {
@@ -197,13 +235,17 @@ export const ProductEditor: React.FC = () => {
                         <h1 className="text-2xl font-black text-gray-800 uppercase tracking-tight">Catalog Management</h1>
                         <p className="text-sm text-gray-500">Manage products, variants and AI assets.</p>
                     </div>
-                    <Button onClick={startCreate}>+ Add New Dress</Button>
+                    <div className="flex gap-2">
+                        <Button variant="outline" onClick={() => navigate('/shop')}>👁️ View Shop</Button>
+                        <Button onClick={startCreate}>+ Add New Dress</Button>
+                    </div>
                 </div>
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
                     <div className="p-4 bg-gray-50/50 border-b border-gray-100 flex items-center gap-4">
                         <div className="relative flex-1 max-w-md">
                             <input type="text" placeholder="Filter by Name or SKU..." className="w-full border border-gray-200 rounded-xl px-4 py-2 text-sm outline-none focus:border-rani-500" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
                         </div>
+                        <div className="text-xs font-bold text-gray-400 uppercase tracking-widest">{filteredProducts.length} Items Found</div>
                     </div>
                     <table className="w-full text-sm text-left">
                         <thead className="bg-gray-50 text-gray-400 font-black uppercase text-[10px] tracking-widest border-b border-gray-100">
@@ -215,11 +257,12 @@ export const ProductEditor: React.FC = () => {
                                 <td className="p-5">
                                     <strong className="text-gray-800 text-base">{p.name}</strong>
                                     <div className="text-[10px] font-black text-gray-400 font-mono tracking-tighter uppercase">{p.sku} • {p.category}</div>
+                                    {!p.isAvailable && <span className="text-[9px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded font-bold uppercase">Hidden</span>}
                                 </td>
                                 <td className="p-5 font-black text-luxury-black">₹{p.basePrice.toLocaleString()}</td>
                                 <td className="p-5 text-right">
                                     <div className="flex justify-end gap-2">
-                                        <Button size="sm" variant="outline" onClick={() => startEdit(p)}>Manage / Rectify</Button>
+                                        <Button size="sm" variant="outline" onClick={() => startEdit(p)}>Manage</Button>
                                         <Button size="sm" variant="text" className="text-red-500 hover:bg-red-50 px-3" onClick={() => handleDelete(p.id)} title="Delete Product">
                                             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -242,15 +285,24 @@ export const ProductEditor: React.FC = () => {
                     <div className="w-10 h-10 bg-rani-500 rounded-xl flex items-center justify-center text-white text-lg font-script font-bold shadow-md">S</div>
                     <div>
                         <h2 className="text-xl font-bold text-gray-800 leading-tight">{editId ? 'Rectify Details' : 'New Collection Entry'}</h2>
-                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{editId ? `Editing SKU: ${sku}` : 'Inventory Onboarding'}</p>
+                        <p className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                            {editId ? `Editing SKU: ${sku}` : 'Inventory Onboarding'}
+                            {hasUnsavedChanges && <span className="text-orange-500">• Unsaved Changes</span>}
+                        </p>
                     </div>
                 </div>
                 <div className="flex gap-2">
-                    <Button variant="outline" onClick={() => setView('LIST')}>Discard</Button>
-                    <Button onClick={handleSave} disabled={loading || uploading || isGeneratingVideo} className="px-10 shadow-lg shadow-rani-500/10">Save & Publish</Button>
+                    <Button variant="outline" onClick={() => {
+                        if(hasUnsavedChanges && !window.confirm("Discard unsaved changes?")) return;
+                        setView('LIST');
+                    }}>Discard</Button>
+                    <Button onClick={handleSave} disabled={loading || uploading || isGeneratingVideo} className="px-10 shadow-lg shadow-rani-500/10">
+                        {loading ? 'Saving...' : 'Save & Publish'}
+                    </Button>
                 </div>
             </div>
 
+            {/* ... (Keep existing Tabs and Content, they are fine) ... */}
             <div className="flex border-b border-gray-100 bg-white shrink-0">
                 {(['Basic Info', 'Media', 'Variants', 'Description'] as Tab[]).map((tab) => (
                     <button key={tab} onClick={() => setActiveTab(tab)} className={`px-8 py-4 text-xs font-black uppercase tracking-widest border-b-2 transition-all ${activeTab === tab ? 'border-rani-500 text-rani-600 bg-rani-50/30' : 'border-transparent text-gray-400 hover:text-gray-600'}`}>{tab}</button>
@@ -258,6 +310,7 @@ export const ProductEditor: React.FC = () => {
             </div>
 
             <div className="flex-1 overflow-y-auto p-10 custom-scrollbar">
+                {/* ... (Keep existing Tab Content for Basic Info, Media, Variants, Description) ... */}
                 {activeTab === 'Basic Info' && (
                     <div className="space-y-8 max-w-2xl animate-fade-in">
                         <Input label="Display Name" value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Royal Silk Anarkali" />
