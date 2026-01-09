@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { Button } from '../../components/Button';
 import { Input } from '../../components/Input';
 import { ProductCategory, ProductVariant, Product } from '../../types';
-import { db, handleAiError } from '../../services/db';
+import { db, handleAiError, getGeminiKey } from '../../services/db';
 import { useApp } from '../../context/AppContext';
 import { GoogleGenAI } from "@google/genai";
 import { KeyGate } from '../../components/KeyGate';
@@ -59,7 +59,10 @@ export const ProductEditor: React.FC = () => {
         if (!name || !category || !fabric) { toast("Provide Name, Category, and Fabric first.", "warning"); return; }
         setLoading(true);
         try {
-            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+            const apiKey = getGeminiKey();
+            if (!apiKey) throw new Error("API Key missing. Please configure it in Admin Settings.");
+
+            const ai = new GoogleGenAI({ apiKey });
             const response = await ai.models.generateContent({
                 model: 'gemini-3-flash-preview',
                 contents: `Write a high-end B2B fashion description for: ${name}, Category: ${category}, Fabric: ${fabric}. Focus on quality and wholesale appeal.`,
@@ -84,7 +87,10 @@ export const ProductEditor: React.FC = () => {
                 const reader = new FileReader(); reader.onloadend = () => resolve(reader.result?.toString().split(',')[1] || ""); reader.readAsDataURL(imageBlob);
             });
             
-            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+            const apiKey = getGeminiKey();
+            if (!apiKey) throw new Error("API Key missing. Please configure it in Admin Settings.");
+
+            const ai = new GoogleGenAI({ apiKey });
             let operation = await ai.models.generateVideos({
                 model: 'veo-3.1-fast-generate-preview',
                 prompt: aiPrompt,
@@ -100,7 +106,8 @@ export const ProductEditor: React.FC = () => {
 
             if (operation.response?.generatedVideos?.[0]?.video?.uri) {
                 const downloadLink = operation.response.generatedVideos[0].video.uri;
-                const videoRes = await fetch(`${downloadLink}&key=${process.env.API_KEY}`);
+                // Use the valid apiKey variable here instead of accessing process.env directly again
+                const videoRes = await fetch(`${downloadLink}&key=${apiKey}`);
                 const videoBlob = await videoRes.blob();
                 const url = await db.uploadVideo(videoBlob);
                 setVideo(url);
