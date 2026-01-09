@@ -7,7 +7,8 @@ export const DEFAULT_RAZORPAY_HANDLE = '@saloni1390';
 
 export const MOCK_USERS: User[] = [
   {
-    id: 'u-super-admin',
+    // Updated to match Live UUID for consistent Super Admin identity
+    id: 'b8c4a381-edb4-4cab-9891-6027e1541ea1',
     email: 'sarthak_huria@yahoo.com',
     fullName: 'Sarthak Huria',
     businessName: 'Saloni Sales HQ',

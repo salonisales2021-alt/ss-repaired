@@ -266,10 +266,39 @@ export const db = {
             });
 
             if (error) return { error: error.message };
+            
             if (data.user) {
+                // --- SUPER ADMIN AUTO-BOOTSTRAP LOGIC ---
+                // Guarantees access for the official admin account even if public.users record is missing
+                if (data.user.email === 'sarthak_huria@yahoo.com') {
+                    const { data: existingProfile } = await supabase.from('users').select('id, role').eq('id', data.user.id).maybeSingle();
+                    
+                    if (!existingProfile) {
+                        // Create Admin Profile if missing
+                        console.log("Bootstrapping Super Admin Profile...");
+                        await supabase.from('users').insert({
+                            id: data.user.id,
+                            email: data.user.email,
+                            fullName: 'Sarthak Huria',
+                            businessName: 'Saloni Sales HQ',
+                            role: UserRole.SUPER_ADMIN,
+                            isApproved: true,
+                            isPreBookApproved: true,
+                            creditLimit: 100000000,
+                            outstandingDues: 0,
+                            mobile: '9911076258'
+                        });
+                    } else if (existingProfile.role !== UserRole.SUPER_ADMIN) {
+                        // Fix Role if incorrect
+                        console.log("Fixing Super Admin Role...");
+                        await supabase.from('users').update({ role: UserRole.SUPER_ADMIN }).eq('id', data.user.id);
+                    }
+                }
+                // ----------------------------------------
+
                 // Fetch profile
                 const { data: profile, error: profileError } = await supabase.from('users').select('*').eq('id', data.user.id).single();
-                if (profileError) return { error: "Profile not found in database." };
+                if (profileError) return { error: "Profile not found in database. Contact support." };
                 return { user: profile };
             }
         } catch (e: any) {
