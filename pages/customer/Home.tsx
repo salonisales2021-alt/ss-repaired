@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Button } from '../../components/Button';
@@ -179,7 +180,9 @@ export const CustomerHome: React.FC = () => {
                     <div className="flex flex-wrap gap-6 text-sm">
                         <div className="bg-white/5 border border-white/10 px-4 py-2 rounded-lg">
                             <p className="text-gray-500 text-[10px] uppercase font-bold mb-1">{t('home.creditLimit')}</p>
-                            <span className="font-bold text-green-400 text-lg">₹{user.creditLimit?.toLocaleString()}</span>
+                            <span className="font-bold text-green-400 text-lg">
+                                {user.creditLimit === 0 ? '∞ (No Limit)' : `₹${user.creditLimit?.toLocaleString()}`}
+                            </span>
                         </div>
                         <div className="bg-white/5 border border-white/10 px-4 py-2 rounded-lg">
                             <p className="text-gray-500 text-[10px] uppercase font-bold mb-1">{t('home.outstanding')}</p>

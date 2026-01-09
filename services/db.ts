@@ -317,6 +317,7 @@ export const db = {
                 role: user.role,
                 mobile: user.mobile,
                 gstin: user.gstin,
+                gstCertificateUrl: user.gstCertificateUrl,
                 "aadharNumber": user.aadharNumber,
                 "businessName": user.businessName,
                 isApproved: user.isApproved || false,

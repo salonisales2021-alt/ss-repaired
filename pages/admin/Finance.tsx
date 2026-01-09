@@ -178,7 +178,9 @@ export const Finance: React.FC = () => {
                                 <div className="flex justify-between items-center bg-gray-50 p-4 rounded-xl mb-6">
                                     <div className="text-center">
                                         <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Active Limit</p>
-                                        <p className="font-bold text-gray-600">₹{req.currentLimit.toLocaleString()}</p>
+                                        <p className="font-bold text-gray-600">
+                                            {req.currentLimit === 0 ? '∞' : `₹${req.currentLimit.toLocaleString()}`}
+                                        </p>
                                     </div>
                                     <div className="text-gray-300">→</div>
                                     <div className="text-center">

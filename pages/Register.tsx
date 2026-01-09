@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Button } from '../components/Button';
@@ -6,6 +7,7 @@ import { verifyGST, GSTDetails } from '../services/gstService';
 import { useApp } from '../context/AppContext';
 import { User, UserRole } from '../types';
 import { BrandLogo } from '../components/BrandLogo';
+import { db } from '../services/db';
 
 export const Register: React.FC = () => {
   const navigate = useNavigate();
@@ -20,6 +22,7 @@ export const Register: React.FC = () => {
 
   const [gstData, setGstData] = useState<GSTDetails | null>(null);
   const [selectedRole, setSelectedRole] = useState<UserRole>(UserRole.RETAILER);
+  const [gstFile, setGstFile] = useState<File | null>(null);
   const [formData, setFormData] = useState({
     email: '',
     mobile: '',
@@ -82,6 +85,16 @@ export const Register: React.FC = () => {
     
     setLoading(true);
 
+    let gstCertUrl = undefined;
+    if (gstFile) {
+        try {
+            gstCertUrl = await db.uploadDocument(gstFile);
+        } catch (uploadErr) {
+            console.error("Failed to upload GST cert", uploadErr);
+            // Optionally notify user but continue or block
+        }
+    }
+
     const newUser: User = {
         // ID generated securely in db.ts
         id: '', 
@@ -90,6 +103,7 @@ export const Register: React.FC = () => {
         businessName: gstData ? gstData.tradeName : formData.businessName,
         role: selectedRole, 
         gstin: identityType === 'GSTIN' ? gstData?.gstin : undefined,
+        gstCertificateUrl: gstCertUrl,
         aadharNumber: formData.aadharNumber,
         mobile: formData.mobile,
         isApproved: false, 
@@ -191,6 +205,19 @@ export const Register: React.FC = () => {
                         <Input label="Owner Name" maxLength={50} required value={formData.ownerName} onChange={e => setFormData({...formData, ownerName: e.target.value})} />
                         <Input label="Mobile" maxLength={15} required value={formData.mobile} onChange={e => setFormData({...formData, mobile: e.target.value})} />
                         <Input label="Email Address" maxLength={60} type="email" required className="md:col-span-2" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
+                        
+                        {/* GST Certificate Upload */}
+                        <div className="md:col-span-2">
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Upload GST Certificate (Optional)</label>
+                            <input 
+                                type="file" 
+                                accept=".pdf,.jpg,.jpeg,.png"
+                                onChange={(e) => setGstFile(e.target.files?.[0] || null)}
+                                className="w-full text-sm border border-gray-300 rounded p-2"
+                            />
+                            <p className="text-[10px] text-gray-500 mt-1">Accepts PDF or Image formats. Helpful for faster approval.</p>
+                        </div>
+
                         <Input label="Set Password" maxLength={30} type="password" required value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} />
                         <Input label="Confirm" maxLength={30} type="password" required value={formData.confirmPassword} onChange={e => setFormData({...formData, confirmPassword: e.target.value})} />
                     </div>

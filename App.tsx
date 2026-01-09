@@ -14,6 +14,7 @@ import { Button } from './components/Button';
 import { TutorialOverlay } from './components/TutorialOverlay';
 import { InstallPwaPrompt } from './components/InstallPwaPrompt';
 import { DemoControls } from './components/DemoControls';
+import { FloatingAddClient } from './components/FloatingAddClient';
 import { UserRole } from './types';
 
 // -- LAZY LOADED COMPONENTS --
@@ -89,6 +90,7 @@ const CustomerLayout = () => {
       </main>
       <Footer />
       <FloatingVisitButton />
+      <FloatingAddClient />
       <div className="hidden md:block">
           <AIChatbot />
       </div>

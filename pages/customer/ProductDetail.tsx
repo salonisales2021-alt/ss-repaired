@@ -84,6 +84,9 @@ export const ProductDetail: React.FC = () => {
   const isEligibleForCredit = useMemo(() => {
       if (!user) return false;
       const limit = user.creditLimit || 0;
+      // If limit is 0, it means Infinite Credit
+      if (limit === 0) return true;
+      
       const dues = user.outstandingDues || 0;
       return (dues + pricing.total) <= limit;
   }, [user, pricing.total]);
@@ -349,12 +352,12 @@ export const ProductDetail: React.FC = () => {
                             <span className="text-xl">{isEligibleForCredit ? '✅' : '⚠️'}</span>
                             <div>
                                 <p className={`text-xs font-bold uppercase tracking-wider ${isEligibleForCredit ? 'text-green-800' : 'text-red-800'}`}>
-                                    {isEligibleForCredit ? 'Credit Eligible' : 'Credit Limit Low'}
+                                    {isEligibleForCredit ? 'Credit Eligible' : (user.creditLimit === 0 ? 'Infinite Credit' : 'Credit Limit Low')}
                                 </p>
                                 <p className="text-[10px] text-gray-500">Based on your ledger statement and this lot size.</p>
                             </div>
                         </div>
-                        {!isEligibleForCredit && (
+                        {!isEligibleForCredit && user.creditLimit !== 0 && (
                             <button onClick={() => navigate('/ledger')} className="text-[10px] font-black uppercase text-red-600 underline">Request Increase</button>
                         )}
                     </div>

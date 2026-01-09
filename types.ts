@@ -40,6 +40,7 @@ export interface User {
   businessName?: string;
   role: UserRole;
   gstin?: string;
+  gstCertificateUrl?: string; // Link to uploaded PDF/Image
   aadharNumber?: string;
   mobile?: string;
   isApproved: boolean;

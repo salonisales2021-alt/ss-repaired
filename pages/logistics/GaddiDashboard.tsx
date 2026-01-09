@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../../context/AppContext';
 import { db } from '../../services/db';
@@ -272,7 +273,9 @@ export const GaddiDashboard: React.FC = () => {
                     </div>
                     <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
                         <p className="text-[10px] text-gray-400 font-black uppercase">Available Limit</p>
-                        <p className="text-xl font-black text-green-600">₹{(user.creditLimit! - user.outstandingDues!).toLocaleString()}</p>
+                        <p className="text-xl font-black text-green-600">
+                            {user.creditLimit === 0 ? '∞' : `₹${(user.creditLimit! - user.outstandingDues!).toLocaleString()}`}
+                        </p>
                     </div>
                 </div>
 

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
 import { Button } from '../../components/Button';
@@ -25,6 +26,9 @@ export const UserManagement: React.FC = () => {
     const [showModal, setShowModal] = useState(false);
     const [isEditMode, setIsEditMode] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
+    
+    // File State for GST Cert
+    const [gstFile, setGstFile] = useState<File | null>(null);
 
     // Form Data
     const [formData, setFormData] = useState<Partial<User> & { password?: string }>({
@@ -38,6 +42,7 @@ export const UserManagement: React.FC = () => {
         creditLimit: 0,
         outstandingDues: 0,
         gstin: '',
+        gstCertificateUrl: '',
         password: '',
         gaddiId: '',
         assignedAgentId: '',
@@ -109,6 +114,7 @@ export const UserManagement: React.FC = () => {
 
     const handleOpenCreate = () => {
         setIsEditMode(false);
+        setGstFile(null);
         setFormData({
             fullName: '',
             email: '',
@@ -120,6 +126,7 @@ export const UserManagement: React.FC = () => {
             creditLimit: 0,
             outstandingDues: 0,
             gstin: '',
+            gstCertificateUrl: '',
             password: '',
             gaddiId: '',
             assignedAgentId: '',
@@ -130,6 +137,7 @@ export const UserManagement: React.FC = () => {
 
     const handleOpenEdit = (user: User) => {
         setIsEditMode(true);
+        setGstFile(null);
         setFormData({ ...user, password: '' }); // Don't load password by default
         setShowModal(true);
     };
@@ -139,23 +147,29 @@ export const UserManagement: React.FC = () => {
         setIsSaving(true);
 
         try {
-            if (isEditMode && formData.id) {
+            // Upload GST Cert if new file selected
+            let certUrl = formData.gstCertificateUrl;
+            if (gstFile) {
+                try {
+                    certUrl = await db.uploadDocument(gstFile);
+                } catch (e) {
+                    console.error("Cert upload failed", e);
+                    toast("Certificate upload failed", "error");
+                }
+            }
+
+            const updatedFormData = { ...formData, gstCertificateUrl: certUrl };
+
+            if (isEditMode && updatedFormData.id) {
                 // Update Existing
-                const { password, ...updateData } = formData; 
+                const { password, ...updateData } = updatedFormData; 
                 
                 // 1. Update Profile Data
                 const success = await db.updateUser(updateData as User);
                 
                 // 2. Handle Password Change (Only if provided and authorized)
                 if (success && password && password.trim() !== "") {
-                    // In a real app, we might need a separate admin endpoint to reset user passwords
-                    // For now, if we assume we have admin privileges or are using a backend function:
-                    // Note: Supabase Client SDK usually prevents changing *other* users' passwords without a service role key.
-                    // We will assume db.updateUser handles specific logic or we use the recovery flow in real scenarios.
-                    // However, per requirements "allow super admin to change passwords", we simulate success or use available API.
                     if (isSuperAdmin) {
-                        // Assuming db has a method or we rely on the implementation logic.
-                        // Ideally: await db.adminUpdatePassword(formData.id, password);
                         toast("Password updated (simulated for Admin context).", "info");
                     }
                 }
@@ -168,15 +182,14 @@ export const UserManagement: React.FC = () => {
                 }
             } else {
                 // Create New
-                // Destructure id out to avoid collision
-                const { id: _tempId, ...rest } = formData as User;
+                const { id: _tempId, ...rest } = updatedFormData as User;
                 const newUser: User = {
                     ...rest,
                     id: `u-${Date.now()}`
                 };
-                const result = await registerUser(newUser, formData.password || 'Saloni123');
+                const result = await registerUser(newUser, updatedFormData.password || 'Saloni123');
                 if (result.success) {
-                    toast(`User created. Default password: ${formData.password || 'Saloni123'}`, "success");
+                    toast(`User created. Default password: ${updatedFormData.password || 'Saloni123'}`, "success");
                     setShowModal(false);
                 } else {
                     toast(result.error || "Creation failed.", "error");
@@ -196,7 +209,7 @@ export const UserManagement: React.FC = () => {
             <button 
                 type="button"
                 onClick={() => onChange(!checked)}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${checked ? 'bg-rani-500' : 'bg-gray-300'}`}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${checked ? 'bg-rani-50' : 'bg-gray-300'}`}
             >
                 <span className={`${checked ? 'translate-x-6' : 'translate-x-1'} inline-block h-4 w-4 transform rounded-full bg-white transition-transform`} />
             </button>
@@ -282,7 +295,11 @@ export const UserManagement: React.FC = () => {
                                 </td>
                                 <td className="p-5">
                                     <div className="flex flex-col gap-1">
-                                        <div className="flex justify-between text-[10px] text-gray-500 font-bold">Credit: <span className="text-gray-900 font-black">₹{u.creditLimit?.toLocaleString()}</span></div>
+                                        <div className="flex justify-between text-[10px] text-gray-500 font-bold">
+                                            Credit: <span className="text-gray-900 font-black">
+                                                {u.creditLimit === 0 ? '∞' : `₹${u.creditLimit?.toLocaleString()}`}
+                                            </span>
+                                        </div>
                                         {u.isPreBookApproved && <span className="text-[9px] bg-gold-100 text-gold-700 border border-gold-200 px-1.5 py-0.5 rounded w-fit font-black uppercase">Pre-Book Club</span>}
                                         {!u.isApproved && <span className="text-[9px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded w-fit font-black uppercase">LOCKED</span>}
                                     </div>
@@ -308,7 +325,7 @@ export const UserManagement: React.FC = () => {
                         <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50">
                             <div>
                                 <h2 className="text-xl font-black text-gray-800 uppercase tracking-tight">{isEditMode ? 'Edit User Profile' : 'Add New Entity'}</h2>
-                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{isEditMode ? `ID: ${formData.id}` : 'Create access credentials'}</p>
+                                <p className="text-sm font-bold text-gray-400">{isEditMode ? `ID: ${formData.id}` : 'Create access credentials'}</p>
                             </div>
                             <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-black">✕</button>
                         </div>
@@ -320,6 +337,25 @@ export const UserManagement: React.FC = () => {
                                     <Input label="Business Name" value={formData.businessName} onChange={e => setFormData({...formData, businessName: e.target.value})} />
                                     <Input label="Email Address" type="email" required value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} disabled={isEditMode} />
                                     <Input label="Mobile" required value={formData.mobile} onChange={e => setFormData({...formData, mobile: e.target.value})} />
+                                </div>
+
+                                {/* GST Cert Section */}
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700 mb-1">GST Certificate</label>
+                                    {formData.gstCertificateUrl && (
+                                        <div className="mb-2 text-xs">
+                                            <a href={formData.gstCertificateUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline font-bold">
+                                                View Current Certificate
+                                            </a>
+                                        </div>
+                                    )}
+                                    <input 
+                                        type="file"
+                                        accept=".pdf,.jpg,.jpeg,.png"
+                                        onChange={(e) => setGstFile(e.target.files?.[0] || null)}
+                                        className="w-full text-sm border border-gray-300 rounded p-2"
+                                    />
+                                    <p className="text-[10px] text-gray-500 mt-1">Upload to replace existing certificate.</p>
                                 </div>
 
                                 <div>
@@ -366,7 +402,7 @@ export const UserManagement: React.FC = () => {
                                     <div className="bg-blue-50 p-6 rounded-xl border border-blue-100 space-y-6">
                                         <h4 className="text-[10px] font-black text-blue-700 uppercase tracking-widest">Financial Configuration</h4>
                                         <div className="grid grid-cols-2 gap-6">
-                                            <Input label="Credit Limit (₹)" type="number" value={formData.creditLimit} onChange={e => setFormData({...formData, creditLimit: Number(e.target.value)})} />
+                                            <Input label="Credit Limit (₹) - 0 for Infinite" type="number" value={formData.creditLimit} onChange={e => setFormData({...formData, creditLimit: Number(e.target.value)})} />
                                             <Input label="Current Outstanding (₹)" type="number" value={formData.outstandingDues} onChange={e => setFormData({...formData, outstandingDues: Number(e.target.value)})} />
                                         </div>
                                         

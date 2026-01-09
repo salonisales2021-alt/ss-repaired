@@ -74,8 +74,8 @@ export const DispatchShop: React.FC = () => {
                                 </div>
                                 <div className="flex items-center gap-2 text-xs font-bold">
                                     <span className="text-gray-400">💳</span>
-                                    Limit: <span className={client.outstandingDues && client.outstandingDues > (client.creditLimit || 0) ? 'text-red-500' : 'text-green-600'}>
-                                        ₹{(client.creditLimit || 0).toLocaleString()}
+                                    Limit: <span className={client.outstandingDues && client.creditLimit !== 0 && client.outstandingDues > (client.creditLimit || 0) ? 'text-red-500' : 'text-green-600'}>
+                                        {client.creditLimit === 0 ? '∞' : `₹${(client.creditLimit || 0).toLocaleString()}`}
                                     </span>
                                 </div>
                             </div>

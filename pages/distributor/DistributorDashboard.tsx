@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { db } from '../../services/db';
@@ -113,7 +114,9 @@ export const DistributorDashboard: React.FC = () => {
                     <div className="flex items-center gap-6">
                         <div className="hidden md:block text-right">
                             <p className="text-[10px] text-gray-500 font-black uppercase tracking-widest">Available Credit</p>
-                            <p className="text-lg font-black text-green-400">₹{user.creditLimit?.toLocaleString()}</p>
+                            <p className="text-lg font-black text-green-400">
+                                {user.creditLimit === 0 ? '∞ (Infinite)' : `₹${user.creditLimit?.toLocaleString()}`}
+                            </p>
                         </div>
                         <Button size="sm" onClick={() => setShowAddClientModal(true)} className="hidden md:block">+ Add Retailer</Button>
                         <Button size="sm" variant="outline" className="border-white/20 text-white hover:bg-white/10" onClick={() => navigate('/login')}>Logout</Button>
@@ -209,7 +212,9 @@ export const DistributorDashboard: React.FC = () => {
                                                     <p className="font-bold text-gray-900">{retailer.businessName}</p>
                                                     <p className="text-[10px] text-gray-500 font-bold uppercase tracking-tighter">{retailer.fullName} • {retailer.mobile}</p>
                                                 </td>
-                                                <td className="p-6 font-bold">₹{retailer.creditLimit?.toLocaleString()}</td>
+                                                <td className="p-6 font-bold">
+                                                    {retailer.creditLimit === 0 ? '∞' : `₹${retailer.creditLimit?.toLocaleString()}`}
+                                                </td>
                                                 <td className="p-6 font-black text-red-600">₹{retailer.outstandingDues?.toLocaleString()}</td>
                                                 <td className="p-6 text-right">
                                                     <button onClick={() => navigate(`/ledger?uid=${retailer.id}`)} className="text-rani-600 font-black text-[10px] uppercase hover:underline">View Ledger</button>
