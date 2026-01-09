@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { Button } from '../../components/Button';
@@ -149,7 +150,7 @@ export const AgentDashboard: React.FC = () => {
                 },
             });
 
-            const plan = parseAIJson(response.text, []);
+            const plan = parseAIJson(response.text || '', []);
             const hydratedPlan = plan.map((item: any) => ({
                 ...item,
                 clientName: myClients.find(c => c.id === item.clientId)?.businessName || 'Unknown'

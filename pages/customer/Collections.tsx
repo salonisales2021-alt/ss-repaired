@@ -1,3 +1,4 @@
+
 import React, { useState, useRef } from 'react';
 import { useApp } from '../../context/AppContext';
 import { useNavigate } from 'react-router-dom';
@@ -86,7 +87,7 @@ export const Collections: React.FC = () => {
                 }
             });
 
-            const matchedIds = parseAIJson<string[]>(response.text, []);
+            const matchedIds = parseAIJson<string[]>(response.text || '', []);
             const matches = products.filter(p => matchedIds.includes(p.id));
             setMatchedProducts(matches);
 

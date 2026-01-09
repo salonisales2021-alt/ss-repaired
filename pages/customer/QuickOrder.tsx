@@ -159,7 +159,7 @@ export const QuickOrder: React.FC = () => {
                 }
             });
 
-            const parsedItems = parseAIJson(response.text, []);
+            const parsedItems = parseAIJson(response.text || '', []);
             const newQuantities = { ...quantities };
             let matchedCount = 0;
 

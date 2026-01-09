@@ -115,7 +115,7 @@ export const SmartStocker: React.FC = () => {
                 },
             });
 
-            const result = parseAIJson<{ items: any[], strategySummary: string }>(response.text, { items: [], strategySummary: '' });
+            const result = parseAIJson<{ items: any[], strategySummary: string }>(response.text || '', { items: [], strategySummary: '' });
             
             // 3. Hydrate Result with Real Objects
             if (result.items) {

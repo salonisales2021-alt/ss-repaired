@@ -77,7 +77,7 @@ export const BulkClientOnboarding: React.FC = () => {
                         }
                     }));
 
-                    const analysis = parseAIJson(response.text, {}) as any;
+                    const analysis = parseAIJson(response.text || '', {}) as any;
                     
                     newDrafts.push({
                         id: Math.random().toString(36).substr(2, 9),

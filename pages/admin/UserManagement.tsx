@@ -87,7 +87,7 @@ export const UserManagement: React.FC = () => {
                 }
             });
 
-            const results = parseAIJson(response.text, []);
+            const results = parseAIJson(response.text || '', []);
             const scoreMap: Record<string, HealthScore> = {};
             results.forEach((r: HealthScore) => scoreMap[r.userId] = r);
             setHealthScores(scoreMap);

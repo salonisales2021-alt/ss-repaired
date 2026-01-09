@@ -59,7 +59,7 @@ export const OrderHistory: React.FC = () => {
               config: { responseMimeType: "application/json" }
           });
 
-          const res = parseAIJson(response.text, { insight: '', status: 'GOOD' } as any);
+          const res = parseAIJson(response.text || '', { insight: '', status: 'GOOD' } as any);
           if (res.insight) {
               setShipmentInsights(prev => ({
                   ...prev,

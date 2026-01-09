@@ -43,7 +43,7 @@ const RestockRecommender: React.FC = () => {
                 config: { responseMimeType: "application/json" }
             });
 
-            const res = parseAIJson(response.text, { items: [] } as any);
+            const res = parseAIJson(response.text || '', { items: [] } as any);
             if (res.items) {
                 const hydrated = res.items.map((item: any) => ({
                     ...item,
@@ -323,4 +323,3 @@ export const DashboardHome: React.FC = () => {
     );
 };
 export default DashboardHome;
-    

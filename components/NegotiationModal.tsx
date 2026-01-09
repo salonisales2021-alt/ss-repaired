@@ -1,5 +1,4 @@
 
-// ... (imports remain same)
 import React, { useState, useRef, useEffect } from 'react';
 import { Button } from './Button';
 import { useLanguage } from '../context/LanguageContext';
@@ -52,7 +51,7 @@ export const NegotiationModal: React.FC<NegotiationModalProps> = ({ cartTotal, o
         config: { responseMimeType: "application/json" }
       });
 
-      const res = parseAIJson(response.text, { message: "Let me check...", discountPercent: 0 } as any);
+      const res = parseAIJson(response.text || '', { message: "Let me check...", discountPercent: 0 } as any);
       setMessages(prev => [...prev, { role: 'model', text: res.message }]);
       
       if (res.discountPercent > 0) {

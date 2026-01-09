@@ -101,7 +101,7 @@ export const MarketingKit: React.FC = () => {
                 },
             });
 
-            const generatedData = parseAIJson<any[]>(response.text, []);
+            const generatedData = parseAIJson<any[]>(response.text || '', []);
             
             // Merge generated data with items
             setItems(prevItems => prevItems.map(item => {
