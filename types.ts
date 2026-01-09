@@ -1,22 +1,23 @@
 
+
 export enum UserRole {
-  RETAILER = 'RETAILER',         // Shop Owner (Buys to sell)
-  LOCAL_TRADER = 'LOCAL_TRADER', // Stocks goods & can distribute locally
-  DISTRIBUTOR = 'DISTRIBUTOR',   // Ledger & Order Distributor (Settle within 60-90 days)
-  GADDI = 'GADDI',               // Backing Wholesale Firm / Establishment
-  AGENT = 'AGENT',               // Sales & Field Collection
+  RETAILER = 'RETAILER',
+  LOCAL_TRADER = 'LOCAL_TRADER',
+  DISTRIBUTOR = 'DISTRIBUTOR',
+  GADDI = 'GADDI',
+  AGENT = 'AGENT',
   ADMIN = 'ADMIN',
   SUPER_ADMIN = 'SUPER_ADMIN',
-  DISPATCH = 'DISPATCH',          // Dispatch Department
-  CORPORATE = 'CORPORATE',        // Multi-location / Chainstores
-  INTERNATIONAL = 'INTERNATIONAL' // Import/Export Clients
+  DISPATCH = 'DISPATCH',
+  CORPORATE = 'CORPORATE',
+  INTERNATIONAL = 'INTERNATIONAL'
 }
 
 export enum ProductCategory {
   WESTERN = 'Western Wear',
   ETHNIC = 'Ethnic Wear',
   INDO_WESTERN = 'Indo-Western Wear',
-  PRE_BOOK = 'Pre-Book Club' // Exclusive Line
+  PRE_BOOK = 'Pre-Book Club'
 }
 
 export enum VisitType {
@@ -26,40 +27,41 @@ export enum VisitType {
 }
 
 export enum PaymentCategory {
-  RAZORPAY = 'RAZORPAY',         // Pay Now
-  GADDI = 'GADDI',               // Pay using Buying House
-  AGENT = 'AGENT',               // Pay using Agent
-  DISTRIBUTOR_CREDIT = 'DISTRIBUTOR', // Pay using Distributor
-  LEDGER = 'LEDGER'              // Legacy/Internal
+  RAZORPAY = 'RAZORPAY',
+  GADDI = 'GADDI',
+  AGENT = 'AGENT',
+  DISTRIBUTOR_CREDIT = 'DISTRIBUTOR',
+  LEDGER = 'LEDGER'
 }
 
 export interface User {
-  id: string;
+  id: string; // UUID
   email: string;
   fullName: string;
   businessName?: string;
   role: UserRole;
   gstin?: string;
-  gstCertificateUrl?: string; // Link to uploaded PDF/Image
+  gstCertificateUrl?: string;
   aadharNumber?: string;
   mobile?: string;
   isApproved: boolean;
-  isPreBookApproved?: boolean; // Exclusive Club Access
-  creditLimit?: number;
-  outstandingDues?: number;
-  wishlist?: string[];
-  assignedAgentId?: string;
-  gaddiId?: string; 
-  assignedDistributorId?: string; // Link to the Distributor node
+  isPreBookApproved?: boolean;
+  creditLimit: number;
+  outstandingDues: number;
+  wishlist: string[];
+  assignedAgentId?: string; // UUID
+  gaddiId?: string; // UUID
+  assignedDistributorId?: string; // UUID
   tier?: 'STANDARD' | 'SILVER' | 'GOLD' | 'PLATINUM';
   adminNotes?: string;
   address?: string;
   city?: string;
   state?: string;
+  created_at?: string;
 }
 
 export interface ProductVariant {
-  id: string;
+  id: string; // UUID
   sizeRange: string;
   color: string;
   stock: number;
@@ -68,7 +70,7 @@ export interface ProductVariant {
 }
 
 export interface Product {
-  id: string;
+  id: string; // UUID
   sku: string;
   name: string;
   description: string;
@@ -80,15 +82,16 @@ export interface Product {
   basePrice: number;
   isAvailable: boolean;
   collection?: string;
-  hsnCode?: string; // Added HSN for Invoice
+  hsnCode?: string;
+  created_at?: string;
 }
 
 export interface CartItem {
-  productId: string;
-  variantId: string;
+  productId: string; // UUID
+  variantId: string; // UUID
   productName: string;
   variantDescription: string;
-  pricePerPiece: number;
+  pricePerPiece: number; // Display only, authority is DB
   piecesPerSet: number;
   quantitySets: number;
   image: string;
@@ -96,40 +99,40 @@ export interface CartItem {
 }
 
 export interface OrderDocuments {
-  invoiceUrl?: string; 
-  retailerMemoUrl?: string; 
+  invoiceUrl?: string;
+  retailerMemoUrl?: string;
   ewayBillUrl?: string;
   lrGrSlipUrl?: string;
-  purchaseOrderUrl?: string; // Admin uploaded PO
+  purchaseOrderUrl?: string;
 }
 
 export interface TransportDetails {
   transporterName: string;
-  grNumber: string; // Builty Number
+  grNumber: string;
   vehicleNumber?: string;
   station?: string;
   eWayBillNo?: string;
 }
 
 export interface Order {
-  id: string;
-  userId: string;
+  id: string; // UUID
+  userId: string; // UUID
   userBusinessName: string;
   userCity?: string;
   userState?: string;
-  items: CartItem[];
-  totalAmount: number; 
-  factoryAmount: number; 
-  guarantorId?: string; // Internal ID of the Distributor/Gaddi
-  guarantorFee?: number; 
+  items: CartItem[]; // Stored as JSONB in DB
+  totalAmount: number;
+  factoryAmount: number;
+  guarantorId?: string; // UUID
+  guarantorFee?: number;
   status: 'PENDING' | 'ACCEPTED' | 'GUARANTEED' | 'READY' | 'DISPATCHED' | 'DELIVERED' | 'CANCELLED';
   createdAt: string;
-  settlementDeadline?: string; 
+  settlementDeadline?: string;
   paymentDetails: {
     method: PaymentCategory;
     entityId?: string;
     entityName?: string;
-    transactionId?: string; // Added for Razorpay or Ext Ref
+    transactionId?: string;
   };
   documents?: OrderDocuments;
   transport?: TransportDetails;
@@ -137,38 +140,9 @@ export interface Order {
   gaddiId?: string;
   gaddiName?: string;
   gaddiAmount?: number;
-  poNumber?: string; // Gaddi Purchase Order Number
-  poImageUrl?: string; // URL of the uploaded P.O. image (Gaddi flow)
+  poNumber?: string;
+  poImageUrl?: string;
 }
-
-// ... rest of existing types
-export type TicketStatus = 'OPEN' | 'IN_PROGRESS' | 'RESOLVED' | 'CLOSED';
-export type TicketPriority = 'LOW' | 'MEDIUM' | 'HIGH';
-export type TicketCategory = 'ORDER_ISSUE' | 'PAYMENT' | 'PRODUCT_QUERY' | 'OTHER' | 'SECURITY_BREACH';
-
-export interface TicketMessage {
-  id: string;
-  senderId: string;
-  senderName: string;
-  message: string;
-  timestamp: string;
-}
-
-export interface SupportTicket {
-    id: string;
-    userId: string;
-    userName: string;
-    orderId?: string;
-    subject: string;
-    category: TicketCategory;
-    status: TicketStatus;
-    priority: TicketPriority;
-    messages: TicketMessage[];
-    createdAt: string;
-    updatedAt: string;
-}
-
-export type StockMovementType = 'IN' | 'OUT' | 'ADJUSTMENT';
 
 export interface StockLog {
     id: string;
@@ -177,7 +151,7 @@ export interface StockLog {
     productName: string;
     variantDesc: string;
     quantity: number;
-    type: StockMovementType;
+    type: 'IN' | 'OUT' | 'ADJUSTMENT';
     reason: string;
     date: string;
     performedBy: string;
@@ -253,4 +227,28 @@ export interface VisitRequest {
     requestedTime: string;
     notes?: string;
     status: 'PENDING' | 'APPROVED' | 'DECLINED';
+}
+
+export type TicketStatus = 'OPEN' | 'IN_PROGRESS' | 'RESOLVED' | 'CLOSED';
+
+export interface SupportTicket {
+    id: string;
+    userId: string;
+    userName: string;
+    orderId?: string;
+    subject: string;
+    category: 'ORDER_ISSUE' | 'PAYMENT' | 'PRODUCT_QUERY' | 'OTHER' | 'SECURITY_BREACH';
+    status: TicketStatus;
+    priority: 'LOW' | 'MEDIUM' | 'HIGH';
+    messages: TicketMessage[];
+    createdAt: string;
+    updatedAt: string;
+}
+
+export interface TicketMessage {
+  id: string;
+  senderId: string;
+  senderName: string;
+  message: string;
+  timestamp: string;
 }

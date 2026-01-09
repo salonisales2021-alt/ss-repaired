@@ -1,4 +1,3 @@
-
 {
   "short_name": "Saloni Sales",
   "name": "Saloni Sales B2B Portal",
@@ -18,5 +17,5 @@
   "display": "standalone",
   "theme_color": "#BE123C",
   "background_color": "#ffffff",
-  "orientation": "portrait"
+  "orientation": "any"
 }

@@ -1,20 +1,18 @@
+
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { User, CartItem, ProductVariant, Product, Notification, UserRole } from '../types';
+import { User, CartItem, ProductVariant, Product, Notification } from '../types';
 import { db } from '../services/db';
-import { isBiometricSupported, registerBiometric, verifyBiometric } from '../services/biometricService';
+import { supabase } from '../services/supabaseClient';
 
 interface AppContextType {
   user: User | null;
   login: (identifier: string, roleType: 'ADMIN' | 'CUSTOMER', password?: string) => Promise<{ success: boolean; error?: string }>;
-  biometricLogin: () => Promise<{ success: boolean; error?: string }>;
-  enableBiometricAuth: () => Promise<boolean>;
   logout: () => void;
   cart: CartItem[];
   addToCart: (product: Product, variant: ProductVariant, quantitySets: number) => void;
   removeFromCart: (variantId: string) => void;
   clearCart: () => void;
   cartTotal: number;
-  cartSavings: number;
   users: User[];
   products: Product[];
   refreshProducts: () => void;
@@ -30,263 +28,171 @@ interface AppContextType {
   markAsRead: (id: string) => void;
   wishlist: string[];
   toggleWishlist: (productId: string) => void;
-  calculatePrice: (pricePerPiece: number, piecesPerSet: number, qtySets: number, isGuaranteed?: boolean) => { finalPrice: number, total: number, discountType: string, guarantorFee: number };
+  calculatePrice: (pricePerPiece: number, piecesPerSet: number, qtySets: number) => { finalPrice: number, total: number };
   isTutorialOpen: boolean;
   setTutorialOpen: (isOpen: boolean) => void;
-  isBiometricAvailable: boolean;
   triggerSecurityLockout: (reason: string) => Promise<void>;
+  isBiometricAvailable: boolean;
+  enableBiometricAuth: () => Promise<boolean>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [users, setUsers] = useState<User[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
-  const [heroVideoUrl, setHeroVideoUrl] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
-  const [selectedClient, setSelectedClient] = useState<User | null>(null);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [allNotifications, setAllNotifications] = useState<Notification[]>([]); // Empty initial state
+  const [heroVideoUrl, setHeroVideoUrl] = useState<string | null>(null);
+  const [selectedClient, setSelectedClient] = useState<User | null>(null);
   const [isTutorialOpen, setTutorialOpen] = useState(false);
-  const [isBiometricAvailable, setIsBiometricAvailable] = useState(false);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
 
-  useEffect(() => {
-    // Initial Load
-    const initData = async () => {
-        const fetchedProducts = await db.getProducts();
-        setProducts(fetchedProducts);
-        
-        const fetchedUsers = await db.getUsers();
-        setUsers(fetchedUsers);
-    };
-    initData();
-    
-    checkBiometrics();
-  }, [user]);
-
-  const checkBiometrics = async () => {
-      const supported = await isBiometricSupported();
-      setIsBiometricAvailable(supported);
+  // Helper to load protected data
+  const loadProtectedData = async () => {
+      const prods = await db.getProducts();
+      setProducts(prods);
+      const u = await db.getUsers();
+      setUsers(u);
   };
+
+  // Initial Data Load
+  useEffect(() => {
+    const init = async () => {
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session?.user) {
+                const profile = await db.getUserById(session.user.id);
+                if (profile) setUser(profile);
+                
+                // Fetch protected data only if authenticated to avoid RLS errors
+                await loadProtectedData();
+            }
+        } catch (e) {
+            console.warn("App initialization warning (Offline or Auth Error):", e);
+        }
+    };
+    init();
+
+    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
+        if (event === 'SIGNED_IN' && session?.user) {
+            const profile = await db.getUserById(session.user.id);
+            setUser(profile);
+            await loadProtectedData();
+        } else if (event === 'SIGNED_OUT') {
+            setUser(null);
+            setProducts([]); // Clear protected data on logout
+            setUsers([]);
+        }
+    });
+
+    return () => authListener.subscription.unsubscribe();
+  }, []);
 
   const refreshProducts = () => db.getProducts().then(setProducts);
 
-  const calculatePrice = (pricePerPiece: number, piecesPerSet: number, qtySets: number, isGuaranteed: boolean = false) => {
-      let finalRate = pricePerPiece;
-      let discountType = "Standard B2B";
-      let guarantorFee = 0;
-
-      if (user?.role === UserRole.LOCAL_TRADER) {
-          finalRate = pricePerPiece * 0.95;
-          discountType = "Trader Rate (-5%)";
-      }
-
-      if (isGuaranteed) {
-          guarantorFee = Math.round(finalRate * 0.18);
-          finalRate = finalRate + guarantorFee;
-          discountType = "Guaranteed Credit Price (18% incl.)";
-      }
-
-      return {
-          finalPrice: Math.round(finalRate),
-          total: Math.round(finalRate * piecesPerSet * qtySets),
-          discountType,
-          guarantorFee
-      };
-  };
-
-  const registerUser = async (newUser: User, password?: string) => {
-    const result = await db.registerUser(newUser, password);
-    if (result.success) {
-        // Update local state to include new user immediately
-        setUsers(prev => [...prev, result.data || newUser]);
-        return { success: true };
-    }
-    return { success: false, error: result.error };
-  };
-
-  const approveUser = async (userId: string) => {
-      const targetUser = users.find(u => u.id === userId);
-      if (targetUser) {
-          const updatedUser = { ...targetUser, isApproved: true };
-          await db.updateUser(updatedUser);
-          setUsers(prev => prev.map(u => u.id === userId ? updatedUser : u));
-          addNotification({
-              recipientId: userId,
-              title: "Account Approved",
-              message: "Your B2B portal access is now live.",
-              type: "SYSTEM",
-              link: "/login"
-          });
-      }
-  };
-
   const login = async (identifier: string, roleType: 'ADMIN' | 'CUSTOMER', password?: string) => {
-    // SECURITY: Clear existing user session before starting a new login process
-    setUser(null);
-
-    const pwd = password || 'password123';
-    const { user: authUser, error } = await db.signIn(identifier, pwd);
-    
-    if (error || !authUser) {
-        console.error("Login attempt failed:", error);
-        return { success: false, error: error || "Invalid credentials" };
-    }
-
-    // Security: Ensure password field is stripped before state/storage
-    const safeUser = { ...authUser };
-    // TypeScript fix: Cast to any to delete property that shouldn't exist but might at runtime
-    delete (safeUser as any).password;
-
-    if (roleType === 'ADMIN') {
-        if (safeUser.role === UserRole.ADMIN || safeUser.role === UserRole.SUPER_ADMIN || safeUser.role === UserRole.DISPATCH) {
-            setUser(safeUser);
-            return { success: true };
-        }
-        return { success: false, error: "ACCESS_DENIED: User is not an Administrator." };
-    } else {
-        if (!safeUser.isApproved) return { success: false, error: "PENDING_APPROVAL" };
-        setUser(safeUser);
-        return { success: true };
-    }
-  };
-
-  // Enable Biometrics for currently logged in user
-  const enableBiometricAuth = async () => {
-      if (!user) return false;
-      const success = await registerBiometric(user.id, user.fullName);
-      if (success) {
-          // Store a simple local flag mapping this device to this user ID
-          localStorage.setItem('saloni_bio_user_id', user.id);
-          localStorage.setItem('saloni_bio_email', user.email);
-          return true;
-      }
-      return false;
-  };
-
-  // Login using Biometrics
-  const biometricLogin = async () => {
-      const storedUserId = localStorage.getItem('saloni_bio_user_id');
-      const storedEmail = localStorage.getItem('saloni_bio_email');
+      const { user: authUser, error } = await db.signIn(identifier, password || '');
+      if (error || !authUser) return { success: false, error: error || "Login failed" };
       
-      if (!storedUserId || !storedEmail) {
-          return { success: false, error: "Biometrics not set up on this device." };
-      }
-
-      const verified = await verifyBiometric();
-      if (verified) {
-          // Fetch user securely
-          const targetUser = await db.getUserById(storedUserId);
-
-          if (targetUser) {
-              if (!targetUser.isApproved) return { success: false, error: "Account pending approval." };
-              
-              const safeUser = { ...targetUser };
-              // TypeScript fix: Cast to any to delete property that shouldn't exist but might at runtime
-              delete (safeUser as any).password;
-              
-              setUser(safeUser);
-              return { success: true };
-          }
-      }
-      return { success: false, error: "Biometric verification failed." };
+      setUser(authUser);
+      return { success: true };
   };
 
   const logout = async () => {
-    await db.signOut();
-    setUser(null);
-    setSelectedClient(null);
-    setCart([]);
-    localStorage.removeItem('saloni_active_user');
-    localStorage.removeItem('saloni_active_cart');
-    // Note: We DO NOT clear 'saloni_bio_user_id' so they can log in again easily
-    window.location.hash = '/';
+      await db.signOut();
+      setUser(null);
+      setProducts([]);
+      setUsers([]);
   };
 
-  const selectClient = (client: User | null) => setSelectedClient(client);
+  const registerUser = db.registerUser;
 
-  const addToCart = (product: Product, variant: ProductVariant, quantitySets: number) => {
-    if (quantitySets <= 0) return;
-    setCart(prev => {
-      const existingIdx = prev.findIndex(item => item.variantId === variant.id);
-      if (existingIdx > -1) {
-        const updated = [...prev];
-        updated[existingIdx].quantitySets += quantitySets;
-        return updated;
+  const approveUser = async (userId: string) => {
+      const u = users.find(x => x.id === userId);
+      if (u) {
+          const updated = { ...u, isApproved: true };
+          await db.updateUser(updated);
+          const freshUsers = await db.getUsers();
+          setUsers(freshUsers);
       }
-      const { finalPrice } = calculatePrice(variant.pricePerPiece, variant.piecesPerSet, quantitySets);
-      return [...prev, {
-        productId: product.id,
-        variantId: variant.id,
-        productName: product.name,
-        variantDescription: `${variant.color} / Set (${variant.sizeRange})`,
-        pricePerPiece: finalPrice,
-        piecesPerSet: variant.piecesPerSet,
-        quantitySets: quantitySets,
-        image: product.images[0]
-      }];
-    });
   };
 
-  const removeFromCart = (variantId: string) => setCart(prev => prev.filter(item => item.variantId !== variantId));
+  // Cart Logic
+  const addToCart = (product: Product, variant: ProductVariant, quantitySets: number) => {
+      setCart(prev => [...prev, {
+          productId: product.id,
+          variantId: variant.id,
+          productName: product.name,
+          variantDescription: `${variant.color} ${variant.sizeRange}`,
+          pricePerPiece: variant.pricePerPiece,
+          piecesPerSet: variant.piecesPerSet,
+          quantitySets,
+          image: product.images[0] || ''
+      }]);
+  };
+  
+  const removeFromCart = (vid: string) => setCart(prev => prev.filter(i => i.variantId !== vid));
   const clearCart = () => setCart([]);
-  const setHeroVideo = (url: string) => setHeroVideoUrl(url);
+  
+  const cartTotal = cart.reduce((acc, item) => acc + (item.pricePerPiece * item.piecesPerSet * item.quantitySets), 0);
 
-  const cartTotal = cart.reduce((sum, item) => sum + (item.pricePerPiece * item.piecesPerSet * item.quantitySets), 0);
-  const cartSavings = 0;
+  const calculatePrice = (pricePerPiece: number, piecesPerSet: number, qtySets: number) => {
+      const total = pricePerPiece * piecesPerSet * qtySets;
+      return { finalPrice: pricePerPiece, total };
+  };
 
-  const notifications = allNotifications
-    .filter(n => user && (n.recipientId === user.id || n.recipientId === 'ALL'))
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-
+  // Mock Notifications logic for now
   const unreadCount = notifications.filter(n => !n.isRead).length;
-
-  const addNotification = (n: Omit<Notification, 'id' | 'createdAt' | 'isRead'>) => {
+  const addNotification = (notification: Omit<Notification, 'id' | 'createdAt' | 'isRead'>) => {
       const newNotif: Notification = {
-          ...n,
-          id: `n-${Date.now()}-${Math.random()}`,
+          ...notification,
+          id: Math.random().toString(36).substr(2, 9),
           createdAt: new Date().toISOString(),
           isRead: false
       };
-      setAllNotifications(prev => [newNotif, ...prev]);
+      setNotifications(prev => [newNotif, ...prev]);
+  };
+  const markAsRead = (id: string) => {
+      setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
   };
 
-  const markAsRead = (id: string) => setAllNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
-
-  const wishlist = user?.wishlist || [];
-
+  const wishlist: string[] = user?.wishlist || [];
   const toggleWishlist = async (productId: string) => {
       if (!user) return;
-      const currentWishlist = user.wishlist || [];
-      const newWishlist = currentWishlist.includes(productId) 
-          ? currentWishlist.filter(id => id !== productId)
-          : [...currentWishlist, productId];
+      const newWishlist = wishlist.includes(productId) 
+          ? wishlist.filter(id => id !== productId) 
+          : [...wishlist, productId];
       
-      const updatedUser = { ...user, wishlist: newWishlist };
-      setUser(updatedUser);
-      await db.updateUser(updatedUser);
+      const success = await db.updateUser({ ...user, wishlist: newWishlist });
+      if (success) {
+          setUser({ ...user, wishlist: newWishlist });
+      }
   };
 
   const triggerSecurityLockout = async (reason: string) => {
-      if (!user) return;
-      await db.triggerSecurityLockout(user.id, user.businessName || user.fullName, reason);
-      logout();
-      window.location.href = '/#/login'; // Force redirect
-      alert("ACCOUNT LOCKED: Security Protocol Violation Detected. Contact Administrator.");
+      if (user) {
+          await db.triggerSecurityLockout(user.id, user.fullName, reason);
+          await logout();
+          alert("Account Locked due to Security Policy Violation: " + reason);
+      }
   };
 
+  // Biometric Placeholder
+  const isBiometricAvailable = false;
+  const enableBiometricAuth = async () => false;
+
   return (
-    <AppContext.Provider value={{ 
-        user, login, biometricLogin, enableBiometricAuth, logout, cart, addToCart, removeFromCart, clearCart, cartTotal, cartSavings,
+    <AppContext.Provider value={{
+        user, login, logout, cart, addToCart, removeFromCart, clearCart, cartTotal,
         users, products, refreshProducts, registerUser, approveUser,
-        selectedClient, selectClient,
-        heroVideoUrl, setHeroVideo,
+        selectedClient, selectClient: setSelectedClient,
+        heroVideoUrl, setHeroVideo: setHeroVideoUrl,
         notifications, unreadCount, addNotification, markAsRead,
-        wishlist, toggleWishlist,
-        calculatePrice,
+        wishlist, toggleWishlist, calculatePrice,
         isTutorialOpen, setTutorialOpen,
-        isBiometricAvailable,
-        triggerSecurityLockout
+        triggerSecurityLockout,
+        isBiometricAvailable, enableBiometricAuth
     }}>
       {children}
     </AppContext.Provider>
@@ -295,6 +201,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
 export const useApp = () => {
   const context = useContext(AppContext);
-  if (context === undefined) throw new Error('useApp must be used within an AppProvider');
+  if (!context) throw new Error('useApp error');
   return context;
 };

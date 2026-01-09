@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { useNavigate } from 'react-router-dom';
@@ -10,7 +9,8 @@ export const DemoControls: React.FC = () => {
     const [isOpen, setIsOpen] = useState(false);
 
     // Only show in development or if explicitly enabled
-    const isDev = (import.meta as any).env?.DEV || window.location.hostname === 'localhost';
+    const env = (import.meta as any).env || {};
+    const isDev = env.DEV || window.location.hostname === 'localhost';
     if (!isDev) return null;
 
     const handleSwitch = async (email: string, role: string) => {

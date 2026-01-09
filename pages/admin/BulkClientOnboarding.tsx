@@ -1,9 +1,8 @@
-
 import React, { useState, useRef } from 'react';
 import { useApp } from '../../context/AppContext';
 import { Button } from '../../components/Button';
 import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
-import { db, handleAiError, runAiWithRetry, parseAIJson } from '../../services/db';
+import { db, handleAiError, runAiWithRetry, parseAIJson, getGeminiKey } from '../../services/db';
 import { User, UserRole } from '../../types';
 import { useToast } from '../../components/Toaster';
 
@@ -34,7 +33,13 @@ export const BulkClientOnboarding: React.FC = () => {
         const newDrafts: DraftClient[] = [];
 
         try {
-            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+            const apiKey = getGeminiKey();
+            if (!apiKey) {
+                alert("API Key is missing. Please configure it in Admin Settings.");
+                setIsAnalyzing(false);
+                return;
+            }
+            const ai = new GoogleGenAI({ apiKey });
             
             for (const file of files) {
                 try {
@@ -121,7 +126,8 @@ export const BulkClientOnboarding: React.FC = () => {
                 isApproved: true,
                 creditLimit: 0,
                 outstandingDues: 0,
-                adminNotes: `AI Imported from Business Card. Original Address: ${draft.address}`
+                adminNotes: `AI Imported from Business Card. Original Address: ${draft.address}`,
+                wishlist: []
             };
 
             // SECURITY: Use a random password instead of a hardcoded one

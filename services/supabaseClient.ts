@@ -1,101 +1,35 @@
 
 import { createClient } from '@supabase/supabase-js';
 
-// Access environment variables safely, checking both import.meta.env and process.env
-// and handling potential variable renaming by Vite (VITE_ prefix vs bare name)
-const getEnv = (key: string) => {
-  let val: string | undefined;
+// Safe access to environment variables for Vite
+const env = (import.meta as any).env || {};
+const processEnv = (typeof process !== 'undefined' && process.env) ? process.env : {};
 
-  try {
-    // 1. Check import.meta.env (Vite standard)
-    // @ts-ignore
-    if (typeof import.meta !== 'undefined' && import.meta.env) {
-      // @ts-ignore
-      val = import.meta.env[key];
-    }
-  } catch (e) {}
+// Priority: 1. Vite Env, 2. Process Env, 3. Hardcoded Fallback (from your provided .env)
+const SUPABASE_URL = env.VITE_SUPABASE_URL || processEnv.SUPABASE_URL || 'https://tikuoenvshrrweahpvpb.supabase.co';
+const SUPABASE_ANON_KEY = env.VITE_SUPABASE_ANON_KEY || processEnv.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRpa3VvZW52c2hycndlYWhwdnBiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ0OTc0MDcsImV4cCI6MjA4MDA3MzQwN30.Zd_EX3qj2ViINN0gFdx1hzqeMRs5ygLqQb3EBfONvAo';
 
-  if (val) return val;
+// Check if configuration looks valid
+const isConfigured = !!(SUPABASE_URL && SUPABASE_ANON_KEY && SUPABASE_URL.startsWith('http'));
 
-  try {
-    // 2. Check process.env (Vite shim / Node)
-    // @ts-ignore
-    if (typeof process !== 'undefined' && process.env) {
-      // @ts-ignore
-      val = process.env[key];
-    }
-  } catch (e) {}
-  
-  return val;
-};
-
-// Retrieve Credentials - Priority: LocalStorage > Env Vars (VITE_ prefixed) > Env Vars (Standard)
-const clean = (str: string | undefined | null) => str ? str.trim() : '';
-
-const SUPABASE_URL = clean(
-    localStorage.getItem('VITE_SUPABASE_URL') || 
-    (getEnv('VITE_SUPABASE_URL') as string) || 
-    (getEnv('SUPABASE_URL') as string) || 
-    ''
-);
-
-const SUPABASE_ANON_KEY = clean(
-    localStorage.getItem('VITE_SUPABASE_ANON_KEY') || 
-    (getEnv('VITE_SUPABASE_ANON_KEY') as string) || 
-    (getEnv('SUPABASE_ANON_KEY') as string) || 
-    ''
-);
-
-// Strict validation of URL format
-const isValidUrl = (url: string) => {
-    try {
-        if (!url.startsWith('http')) return false;
-        new URL(url);
-        return true;
-    } catch {
-        return false;
-    }
-};
-
-// Check if keys are valid and NOT default placeholders
-const isConfigured = SUPABASE_URL && SUPABASE_ANON_KEY && isValidUrl(SUPABASE_URL) && !SUPABASE_URL.includes('placeholder') && !SUPABASE_ANON_KEY.includes('placeholder');
-
-export const isLiveData = !!isConfigured;
-
-if (isLiveData) {
-    console.log("✅ LIVE DB CONNECTED: " + SUPABASE_URL);
-} else {
-    // Switched from warn to info to reduce console noise during development/demo
-    console.info("ℹ️ DEMO MODE ACTIVE: Using persistent local storage. (Connect Supabase in Admin Settings to go live)");
+if (!isConfigured) {
+  console.warn('Supabase credentials missing or invalid. App running in disconnected mode. Data will not load.');
 }
 
-export const supabase = createClient(
-    isLiveData ? SUPABASE_URL : 'https://placeholder.supabase.co', 
-    isLiveData ? SUPABASE_ANON_KEY : 'placeholder'
-);
+// Fallback to placeholders to prevent client initialization crash if absolutely nothing is found
+const url = isConfigured ? SUPABASE_URL : 'https://placeholder.supabase.co';
+const key = isConfigured ? SUPABASE_ANON_KEY : 'placeholder';
 
-// Helper to verify connection credentials without reloading
-export const testConnection = async (url: string, key: string) => {
-    if (!url || !key) return { success: false, error: "Missing credentials" };
-    if (!isValidUrl(url)) return { success: false, error: "Invalid URL format" };
-    
-    try {
-        const tempClient = createClient(url, key);
-        // Try to fetch 1 row from 'products' (assumes schema exists)
-        // Using 'head' to minimize data transfer
-        const { error } = await tempClient.from('products').select('id', { count: 'exact', head: true });
-        
-        if (error) {
-            // If table doesn't exist (404/PGRST204) but auth worked, it's partial success (connected but no schema)
-            // But usually we want to catch auth errors
-            if (error.code === 'PGRST116' || error.message.includes('relation "public.products" does not exist')) {
-                 return { success: true, warning: "Connected, but 'products' table missing. Run Schema Script." };
-            }
-            throw error;
-        }
-        
-        return { success: true };
-    } catch (e: any) {
-        return { success: false, error: e.message || "Connection failed" };
-    }
-};
+export const supabase = createClient(url, key, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true
+  },
+  db: {
+    schema: 'public'
+  }
+});
+
+// Flag to check if we are using live data configuration
+export const isLiveData = isConfigured;

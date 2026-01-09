@@ -6,7 +6,7 @@ import { useLanguage } from '../../context/LanguageContext';
 import { GoogleGenAI, Type } from "@google/genai";
 import { Button } from '../../components/Button';
 import { Product } from '../../types';
-import { parseAIJson } from '../../services/db';
+import { parseAIJson, getGeminiKey } from '../../services/db';
 
 export const Collections: React.FC = () => {
     const { products } = useApp();
@@ -46,9 +46,9 @@ export const Collections: React.FC = () => {
         setMatchedProducts([]);
 
         try {
-            const apiKey = process.env.API_KEY;
+            const apiKey = getGeminiKey();
             if (!apiKey) {
-                alert("API Key missing. Visual Search unavailable.");
+                alert("API Key missing. Visual Search unavailable. Check Admin Settings.");
                 setIsAnalyzing(false);
                 return;
             }

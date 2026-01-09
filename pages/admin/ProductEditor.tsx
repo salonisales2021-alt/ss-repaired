@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '../../components/Button';
 import { Input } from '../../components/Input';
@@ -38,6 +37,7 @@ export const ProductEditor: React.FC = () => {
     const [loading, setLoading] = useState(false);
     const [uploading, setUploading] = useState(false);
     const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+    const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
     
     // AI State
     const [aiPrompt, setAiPrompt] = useState('Cinematic shot, 4k, fashion runway lighting, slow motion spin showing the dress details');
@@ -83,6 +83,25 @@ export const ProductEditor: React.FC = () => {
         setHasUnsavedChanges(false);
     };
 
+    const handleDrop = (index: number) => {
+        if (draggedIndex === null) return;
+        if (draggedIndex === index) {
+            setDraggedIndex(null);
+            return;
+        }
+        
+        const newImages = [...images];
+        const draggedImage = newImages[draggedIndex];
+        
+        // Remove from old position
+        newImages.splice(draggedIndex, 1);
+        // Insert at new position
+        newImages.splice(index, 0, draggedImage);
+        
+        setImages(newImages);
+        setDraggedIndex(null);
+    };
+
     const handleSave = async () => {
         if (!name || !sku || !basePrice) { toast("Fill in Name, SKU and Price.", "warning"); return; }
         if (images.length === 0) { toast("At least 1 image is required.", "warning"); return; }
@@ -115,7 +134,6 @@ export const ProductEditor: React.FC = () => {
         }
     };
 
-    // ... (Keep existing generateDescription, handleGenerateAiVideo, handleDelete, updateVariant, addVariant, removeVariant, duplicateVariant functions exactly as they were in previous version) ...
     const generateDescription = async () => {
         if (!name || !category || !fabric) { toast("Provide Name, Category, and Fabric first.", "warning"); return; }
         setLoading(true);
@@ -169,7 +187,10 @@ export const ProductEditor: React.FC = () => {
                 const downloadLink = operation.response.generatedVideos[0].video.uri;
                 const videoRes = await fetch(`${downloadLink}&key=${apiKey}`);
                 const videoBlob = await videoRes.blob();
-                const url = await db.uploadVideo(videoBlob);
+                
+                const videoFile = new File([videoBlob], `ai-runway-${Date.now()}.mp4`, { type: 'video/mp4' });
+                
+                const url = await db.uploadVideo(videoFile);
                 setVideo(url);
                 toast("AI Video linked successfully! Don't forget to SAVE.", "success");
             }
@@ -302,7 +323,6 @@ export const ProductEditor: React.FC = () => {
                 </div>
             </div>
 
-            {/* ... (Keep existing Tabs and Content, they are fine) ... */}
             <div className="flex border-b border-gray-100 bg-white shrink-0">
                 {(['Basic Info', 'Media', 'Variants', 'Description'] as Tab[]).map((tab) => (
                     <button key={tab} onClick={() => setActiveTab(tab)} className={`px-8 py-4 text-xs font-black uppercase tracking-widest border-b-2 transition-all ${activeTab === tab ? 'border-rani-500 text-rani-600 bg-rani-50/30' : 'border-transparent text-gray-400 hover:text-gray-600'}`}>{tab}</button>
@@ -310,7 +330,6 @@ export const ProductEditor: React.FC = () => {
             </div>
 
             <div className="flex-1 overflow-y-auto p-10 custom-scrollbar">
-                {/* ... (Keep existing Tab Content for Basic Info, Media, Variants, Description) ... */}
                 {activeTab === 'Basic Info' && (
                     <div className="space-y-8 max-w-2xl animate-fade-in">
                         <Input label="Display Name" value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Royal Silk Anarkali" />
@@ -339,24 +358,62 @@ export const ProductEditor: React.FC = () => {
                         <section>
                             <h3 className="text-xs font-black uppercase tracking-widest text-gray-400 mb-6 flex items-center gap-2">
                                 <span className="text-lg">📸</span> Design Gallery
+                                <span className="text-[10px] text-gray-300 font-normal normal-case ml-auto">Drag images to reorder</span>
                             </h3>
-                            <div className="grid grid-cols-5 gap-4">
+                            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
                                 {images.map((img, i) => (
-                                    <div key={i} className="relative aspect-[3/4] bg-gray-50 border border-gray-100 rounded-xl overflow-hidden group shadow-sm ring-1 ring-black/5">
-                                        <img src={img} className="w-full h-full object-cover" alt="" />
-                                        <button onClick={() => setImages(images.filter((_, idx) => idx !== i))} className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-lg">✕</button>
+                                    <div 
+                                        key={i} 
+                                        draggable
+                                        onDragStart={() => setDraggedIndex(i)}
+                                        onDragOver={(e) => e.preventDefault()}
+                                        onDrop={() => handleDrop(i)}
+                                        className={`relative aspect-[3/4] bg-gray-50 border border-gray-100 rounded-xl overflow-hidden group shadow-sm ring-1 ring-black/5 cursor-move transition-all duration-200 ${draggedIndex === i ? 'opacity-40 scale-95 border-rani-500 border-2' : 'hover:shadow-md'}`}
+                                    >
+                                        <img src={img} className="w-full h-full object-cover pointer-events-none" alt={`Product ${i}`} />
+                                        
+                                        {/* Overlay Actions */}
+                                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
+                                        
+                                        <button 
+                                            onClick={() => setImages(images.filter((_, idx) => idx !== i))} 
+                                            className="absolute top-2 right-2 bg-white text-red-500 p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-all shadow-lg hover:bg-red-50 z-10 transform hover:scale-110"
+                                            title="Remove Image"
+                                        >
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" /></svg>
+                                        </button>
+
+                                        <div className="absolute bottom-2 left-2 bg-black/60 backdrop-blur-sm text-white text-[9px] font-bold px-2 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity">
+                                            {i === 0 ? 'COVER' : `#${i + 1}`}
+                                        </div>
                                     </div>
                                 ))}
-                                <label className="border-2 border-dashed border-gray-200 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:bg-gray-50 hover:border-rani-500 transition-all aspect-[3/4] gap-2">
-                                    <span className="text-2xl text-gray-300">+</span>
-                                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Add Photo</span>
-                                    <input type="file" className="hidden" onChange={async (e) => {
-                                        if (e.target.files?.[0]) {
-                                            setUploading(true);
-                                            try { const url = await db.uploadImage(e.target.files[0]); setImages([...images, url]); } 
-                                            catch (err) { toast("Upload failed.", "error"); } finally { setUploading(false); }
-                                        }
-                                    }} />
+                                
+                                <label className={`border-2 border-dashed border-gray-200 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:bg-gray-50 hover:border-rani-500 transition-all aspect-[3/4] gap-2 ${uploading ? 'animate-pulse bg-gray-50' : ''}`}>
+                                    <span className="text-2xl text-gray-300">{uploading ? '⏳' : '+'}</span>
+                                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">
+                                        {uploading ? 'Uploading...' : 'Add Photos'}
+                                    </span>
+                                    <input 
+                                        type="file" 
+                                        multiple 
+                                        accept="image/*" 
+                                        className="hidden" 
+                                        onChange={async (e) => {
+                                            if (e.target.files && e.target.files.length > 0) {
+                                                setUploading(true);
+                                                const files = Array.from(e.target.files) as File[];
+                                                try { 
+                                                    const uploadPromises = files.map(file => db.uploadImage(file));
+                                                    const urls = await Promise.all(uploadPromises); 
+                                                    setImages(prev => [...prev, ...urls]); 
+                                                    toast(`Uploaded ${urls.length} images`, "success");
+                                                } 
+                                                catch (err) { toast("Upload failed.", "error"); } 
+                                                finally { setUploading(false); }
+                                            }
+                                        }} 
+                                    />
                                 </label>
                             </div>
                         </section>

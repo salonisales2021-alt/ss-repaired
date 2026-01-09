@@ -4,7 +4,7 @@ import { GoogleGenAI, LiveServerMessage, Modality, Blob, FunctionDeclaration, Ty
 import { useApp } from '../context/AppContext';
 import { useLanguage } from '../context/LanguageContext';
 import { useNavigate } from 'react-router-dom';
-import { handleAiError } from '../services/db';
+import { handleAiError, getGeminiKey } from '../services/db';
 
 // --- HELPER FUNCTIONS FOR AUDIO ---
 function decode(base64: string) {
@@ -149,8 +149,9 @@ export const LiveSalesAgent: React.FC = () => {
   };
 
   const startSession = async () => {
-    if (!process.env.API_KEY) {
-      alert("API Key missing");
+    const apiKey = getGeminiKey();
+    if (!apiKey) {
+      alert("API Key missing. Please check Admin Settings.");
       return;
     }
 
@@ -158,7 +159,7 @@ export const LiveSalesAgent: React.FC = () => {
       setIsActive(true);
       setStatus('connecting');
 
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+      const ai = new GoogleGenAI({ apiKey });
       
       const stream = await navigator.mediaDevices.getUserMedia({ audio: {
         sampleRate: 16000,

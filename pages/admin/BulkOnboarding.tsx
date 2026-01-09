@@ -4,7 +4,7 @@ import { useApp } from '../../context/AppContext';
 import { Button } from '../../components/Button';
 import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
 import { useLanguage } from '../../context/LanguageContext';
-import { db, handleAiError, parseAIJson } from '../../services/db';
+import { db, handleAiError, parseAIJson, getGeminiKey } from '../../services/db';
 import { Product, ProductCategory } from '../../types';
 
 interface DraftProduct {
@@ -34,7 +34,13 @@ export const BulkOnboarding: React.FC = () => {
         const newDrafts: DraftProduct[] = [];
 
         try {
-            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+            const apiKey = getGeminiKey();
+            if (!apiKey) {
+                alert("API Key is missing. Please configure it in Admin Settings.");
+                setIsAnalyzing(false);
+                return;
+            }
+            const ai = new GoogleGenAI({ apiKey });
             
             for (const file of files) {
                 try {

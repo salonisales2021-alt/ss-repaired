@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../../context/AppContext';
 import { db } from '../../services/db';
@@ -114,7 +113,8 @@ export const GaddiDashboard: React.FC = () => {
                 isPreBookApproved: false,
                 creditLimit: 0,
                 outstandingDues: 0,
-                gaddiId: user?.id // Auto-link to self
+                gaddiId: user?.id, // Auto-link to self
+                wishlist: []
             };
 
             const password = newClientData.mobile || 'Saloni123';

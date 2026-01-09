@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { db } from '../../services/db';
@@ -75,7 +74,8 @@ export const DistributorDashboard: React.FC = () => {
                 isPreBookApproved: false,
                 creditLimit: 0,
                 outstandingDues: 0,
-                assignedDistributorId: user?.id // Auto-link to self
+                assignedDistributorId: user?.id, // Auto-link to self
+                wishlist: []
             };
 
             const password = newClientData.mobile || 'Saloni123';

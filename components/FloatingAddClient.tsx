@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { UserRole, User } from '../types';
@@ -39,7 +38,8 @@ export const FloatingAddClient: React.FC = () => {
             creditLimit: 0,
             outstandingDues: 0,
             // If Agent created, auto-assign
-            assignedAgentId: user.role === UserRole.AGENT ? user.id : undefined
+            assignedAgentId: user.role === UserRole.AGENT ? user.id : undefined,
+            wishlist: []
         };
 
         const password = formData.mobile || 'Saloni123';

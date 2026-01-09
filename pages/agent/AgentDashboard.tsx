@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { Button } from '../../components/Button';
@@ -256,7 +257,8 @@ export const AgentDashboard: React.FC = () => {
                 isPreBookApproved: false,
                 creditLimit: 0,
                 outstandingDues: 0,
-                assignedAgentId: user.id // Auto-link to self
+                assignedAgentId: user.id, // Auto-link to self
+                wishlist: []
             };
 
             // Use mobile as initial password for simplicity in field

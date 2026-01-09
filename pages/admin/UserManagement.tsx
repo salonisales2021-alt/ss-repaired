@@ -4,7 +4,7 @@ import { useApp } from '../../context/AppContext';
 import { Button } from '../../components/Button';
 import { Input } from '../../components/Input';
 import { UserRole, User } from '../../types';
-import { db, parseAIJson } from '../../services/db';
+import { db, parseAIJson, getGeminiKey } from '../../services/db';
 import { GoogleGenAI, Type } from "@google/genai";
 import { useToast } from '../../components/Toaster';
 
@@ -59,7 +59,13 @@ export const UserManagement: React.FC = () => {
     const analyzeCreditHealth = async () => {
         setIsAnalyzing(true);
         try {
-            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+            const apiKey = getGeminiKey();
+            if (!apiKey) {
+                toast("API Key missing. Configure in Admin Settings.", "warning");
+                setIsAnalyzing(false);
+                return;
+            }
+            const ai = new GoogleGenAI({ apiKey });
             const context = users.filter(u => u.role === UserRole.RETAILER || u.role === UserRole.DISTRIBUTOR).map(u => ({
                 id: u.id,
                 name: u.businessName,

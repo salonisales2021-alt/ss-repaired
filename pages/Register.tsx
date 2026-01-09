@@ -1,4 +1,5 @@
 
+
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Button } from '../components/Button';
@@ -108,7 +109,8 @@ export const Register: React.FC = () => {
         mobile: formData.mobile,
         isApproved: false, 
         creditLimit: 0,
-        outstandingDues: 0
+        outstandingDues: 0,
+        wishlist: []
     };
 
     const result = await registerUser(newUser, formData.password);
