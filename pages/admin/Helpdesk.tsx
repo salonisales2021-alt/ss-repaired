@@ -1,5 +1,4 @@
 
-
 import React, { useState, useEffect, useRef } from 'react';
 import { db } from '../../services/db';
 import { SupportTicket, TicketMessage, TicketStatus } from '../../types';
@@ -7,6 +6,7 @@ import { Button } from '../../components/Button';
 import { useApp } from '../../context/AppContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { GoogleGenAI } from "@google/genai";
+import { getGeminiKey, handleAiError } from '../../services/db';
 
 export const Helpdesk: React.FC = () => {
     const { user } = useApp();
@@ -55,7 +55,10 @@ export const Helpdesk: React.FC = () => {
         setSummary(null);
 
         try {
-            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+            const apiKey = getGeminiKey();
+            if (!apiKey) throw new Error("API Key missing");
+
+            const ai = new GoogleGenAI({ apiKey });
             const chatHistory = selectedTicket.messages.map(m => `${m.senderName}: ${m.message}`).join('\n');
             
             const response = await ai.models.generateContent({
@@ -71,7 +74,7 @@ export const Helpdesk: React.FC = () => {
 
             if (response.text) setSummary(response.text);
         } catch (error) {
-            console.error(error);
+            await handleAiError(error);
             setSummary("AI failed to summarize this thread. Please read the history manually.");
         } finally {
             setIsSummarizing(false);
@@ -155,7 +158,7 @@ export const Helpdesk: React.FC = () => {
                                 onClick={() => setFilterStatus(status)}
                                 className={`px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap transition-colors border ${
                                     filterStatus === status 
-                                    ? 'bg-rani-500 text-white border-rani-500' 
+                                    ? 'bg-rani-50 text-white border-rani-500' 
                                     : 'bg-white text-gray-600 border-gray-300 hover:border-gray-400'
                                 }`}
                             >
@@ -178,4 +181,121 @@ export const Helpdesk: React.FC = () => {
                                 className={`p-4 border-b border-gray-200 cursor-pointer hover:bg-white transition-colors ${selectedTicket?.id === ticket.id ? 'bg-white border-l-4 border-l-rani-500 shadow-sm' : 'bg-transparent border-l-4 border-l-transparent'}`}
                             >
                                 <div className="flex justify-between items-start mb-1">
-                                    <h4
+                                    <h4 className="font-bold text-sm text-gray-800 line-clamp-1">{ticket.subject}</h4>
+                                    <span className="text-[10px] text-gray-400 shrink-0">{new Date(ticket.updatedAt).toLocaleDateString()}</span>
+                                </div>
+                                <div className="flex justify-between items-center mt-1">
+                                    <span className="text-xs text-gray-500 truncate max-w-[120px]">{ticket.userName}</span>
+                                    <span className={`text-[9px] px-1.5 py-0.5 rounded uppercase font-bold ${getStatusColor(ticket.status)}`}>
+                                        {ticket.status.replace('_', ' ')}
+                                    </span>
+                                </div>
+                            </div>
+                        ))
+                    )}
+                </div>
+            </div>
+
+            {/* Chat Detail View */}
+            <div className="flex-1 flex flex-col bg-white h-full overflow-hidden">
+                {selectedTicket ? (
+                    <>
+                        {/* Header */}
+                        <div className="p-4 border-b border-gray-200 bg-white flex justify-between items-center shrink-0">
+                            <div>
+                                <h2 className="text-lg font-bold text-gray-800">{selectedTicket.subject}</h2>
+                                <div className="flex items-center gap-2 text-xs text-gray-500">
+                                    <span>#{selectedTicket.id}</span>
+                                    <span>•</span>
+                                    <span>{selectedTicket.category.replace('_', ' ')}</span>
+                                    {selectedTicket.orderId && <span>• Order: {selectedTicket.orderId}</span>}
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <Button variant="outline" size="sm" onClick={handleSummarize} disabled={isSummarizing}>
+                                    {isSummarizing ? 'AI Summarizing...' : '✨ Summarize'}
+                                </Button>
+                                <select 
+                                    className="bg-gray-50 border border-gray-200 rounded text-xs px-2 py-1 outline-none"
+                                    value={selectedTicket.status}
+                                    onChange={(e) => handleStatusChange(e.target.value as TicketStatus)}
+                                >
+                                    <option value="OPEN">Open</option>
+                                    <option value="IN_PROGRESS">In Progress</option>
+                                    <option value="RESOLVED">Resolved</option>
+                                    <option value="CLOSED">Closed</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        {/* Summary Block */}
+                        {summary && (
+                            <div className="bg-purple-50 p-4 border-b border-purple-100 animate-fade-in shrink-0">
+                                <h4 className="text-xs font-bold text-purple-700 uppercase mb-1">AI Summary</h4>
+                                <div className="text-sm text-purple-900 whitespace-pre-line">{summary}</div>
+                            </div>
+                        )}
+
+                        {/* Messages */}
+                        <div className="flex-1 overflow-y-auto p-6 bg-gray-50/50 space-y-4">
+                            {selectedTicket.messages.map(msg => {
+                                const isAgent = msg.senderId === 'SUPPORT' || msg.senderId === 'ADMIN' || msg.senderId === user?.id;
+                                return (
+                                    <div key={msg.id} className={`flex ${isAgent ? 'justify-end' : 'justify-start'}`}>
+                                        <div className={`max-w-[80%] flex flex-col ${isAgent ? 'items-end' : 'items-start'}`}>
+                                            <div className={`px-4 py-3 rounded-2xl text-sm shadow-sm ${
+                                                isAgent 
+                                                ? 'bg-rani-500 text-white rounded-br-none' 
+                                                : 'bg-white border border-gray-200 text-gray-800 rounded-bl-none'
+                                            }`}>
+                                                {renderMessage(msg.message)}
+                                            </div>
+                                            <span className="text-[10px] text-gray-400 mt-1 px-1">
+                                                {isAgent ? 'Support' : msg.senderName} • {new Date(msg.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                                            </span>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                            <div ref={messagesEndRef} />
+                        </div>
+
+                        {/* Reply Box */}
+                        <div className="p-4 bg-white border-t border-gray-200 shrink-0">
+                            <form onSubmit={handleReply}>
+                                <div className="relative">
+                                    <textarea 
+                                        ref={replyInputRef}
+                                        className="w-full border border-gray-300 rounded-xl px-4 py-3 pr-12 text-sm outline-none focus:ring-2 focus:ring-rani-500/20 focus:border-rani-500 resize-none h-24"
+                                        placeholder="Type your reply... (Use **bold** for emphasis)"
+                                        value={replyText}
+                                        onChange={(e) => setReplyText(e.target.value)}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter' && !e.shiftKey) {
+                                                e.preventDefault();
+                                                handleReply(e);
+                                            }
+                                        }}
+                                    />
+                                    <div className="absolute bottom-3 right-3 flex gap-2">
+                                        <button type="button" onClick={() => insertFormat('**')} className="text-gray-400 hover:text-rani-600 font-bold" title="Bold">B</button>
+                                        <Button size="sm" disabled={!replyText.trim()} className="rounded-lg h-8 px-4">Send</Button>
+                                    </div>
+                                </div>
+                                <div className="mt-2 text-xs text-gray-400 flex justify-between">
+                                    <span>Press Enter to send</span>
+                                    <span>Shift + Enter for new line</span>
+                                </div>
+                            </form>
+                        </div>
+                    </>
+                ) : (
+                    <div className="flex-1 flex flex-col items-center justify-center text-gray-400">
+                        <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mb-4 text-4xl">💬</div>
+                        <p>Select a ticket to view details</p>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+};
