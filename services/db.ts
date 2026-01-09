@@ -55,7 +55,8 @@ export const handleAiError = async (error: any): Promise<boolean> => {
     return false;
 };
 
-export const parseAIJson = <T>(text: string, fallback: T): T => {
+export const parseAIJson = <T>(text: string | undefined | null, fallback: T): T => {
+    if (!text) return fallback;
     try {
         const jsonMatch = text.match(/\{[\s\S]*\}|\[[\s\S]*\]/);
         if (jsonMatch) {
