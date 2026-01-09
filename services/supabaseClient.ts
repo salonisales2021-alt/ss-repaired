@@ -49,21 +49,24 @@ const SUPABASE_ANON_KEY = clean(
 // Strict validation of URL format
 const isValidUrl = (url: string) => {
     try {
+        if (!url.startsWith('http')) return false;
         new URL(url);
-        return url.startsWith('http');
+        return true;
     } catch {
         return false;
     }
 };
 
-// Check if keys are valid
-export const isLiveData = !!(SUPABASE_URL && SUPABASE_ANON_KEY && isValidUrl(SUPABASE_URL));
+// Check if keys are valid and NOT default placeholders
+const isConfigured = SUPABASE_URL && SUPABASE_ANON_KEY && isValidUrl(SUPABASE_URL) && !SUPABASE_URL.includes('placeholder') && !SUPABASE_ANON_KEY.includes('placeholder');
+
+export const isLiveData = !!isConfigured;
 
 if (isLiveData) {
     console.log("✅ LIVE DB CONNECTED: " + SUPABASE_URL);
 } else {
     // Switched from warn to info to reduce console noise during development/demo
-    console.info("ℹ️ DEMO MODE ACTIVE: Using local mock data. (Connect Supabase in Admin Settings to go live)");
+    console.info("ℹ️ DEMO MODE ACTIVE: Using persistent local storage. (Connect Supabase in Admin Settings to go live)");
 }
 
 export const supabase = createClient(

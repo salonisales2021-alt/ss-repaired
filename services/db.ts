@@ -31,16 +31,15 @@ import {
 // --- HELPERS ---
 
 export const getGeminiKey = (): string => {
-    // Priority: LocalStorage (Runtime Override) > Environment Variable (Build time)
     return localStorage.getItem('SALONI_GEMINI_KEY') || process.env.API_KEY || '';
 };
 
 export const handleAiError = async (error: any): Promise<boolean> => {
     console.error("AI Error:", error);
     if (error.message?.includes("429") || error.message?.includes("quota")) {
-        return true; // Handled
+        return true; 
     }
-    return false; // Not handled
+    return false;
 };
 
 export const parseAIJson = <T = any>(text: string | undefined, fallback: T): T => {
@@ -72,43 +71,112 @@ export const runAiWithRetry = async <T>(
     }
 };
 
+// --- LOCAL STORAGE PERSISTENCE LAYER ---
+// This ensures that in Demo Mode, changes (like Excel imports) persist across reloads.
+
+const getLocal = <T>(key: string, fallback: T): T => {
+    try {
+        const stored = localStorage.getItem(key);
+        return stored ? JSON.parse(stored) : fallback;
+    } catch (e) {
+        return fallback;
+    }
+};
+
+const setLocal = (key: string, data: any) => {
+    try {
+        localStorage.setItem(key, JSON.stringify(data));
+    } catch (e) {
+        console.error("Local Storage Save Failed", e);
+    }
+};
+
+// Initialize Local State from Storage or Seed with Mock Data
+let localProducts: Product[] = getLocal('saloni_data_products', [...MOCK_PRODUCTS]);
+let localUsers: User[] = getLocal('saloni_data_users', [...MOCK_USERS]);
+let localOrders: Order[] = getLocal('saloni_data_orders', [...MOCK_ORDERS]);
+let localStockLogs: StockLog[] = getLocal('saloni_data_stocklogs', [...MOCK_STOCK_LOGS]);
+// ... Initialize others as needed lazily
+
 // --- HYBRID DATABASE SERVICE ---
-// Attempts to use Live DB, falls back to Mock Data if connection fails or keys are missing.
 
 export const db = {
     // PRODUCTS
     getProducts: async (): Promise<Product[]> => {
-        if (!isLiveData) return MOCK_PRODUCTS;
+        if (!isLiveData) {
+            // Refresh from local storage to ensure latest data
+            localProducts = getLocal('saloni_data_products', localProducts);
+            return [...localProducts];
+        }
         const { data, error } = await supabase.from('products').select('*');
         if (error) {
-            console.warn("DB Error (Products), falling back:", error.message);
-            return MOCK_PRODUCTS;
+            console.warn("DB Error (Products), falling back to local:", error.message);
+            return [...localProducts];
         }
         return (data as Product[]) || [];
     },
 
     saveProduct: async (product: Partial<Product>): Promise<boolean> => {
-        if (!isLiveData) return true;
+        if (!isLiveData) {
+            localProducts = getLocal('saloni_data_products', localProducts);
+            const index = localProducts.findIndex(p => p.id === product.id);
+            
+            if (index !== -1) {
+                // Update
+                localProducts[index] = { ...localProducts[index], ...product };
+            } else {
+                // Create
+                const newProduct = { ...product };
+                if (!newProduct.id) newProduct.id = `p-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
+                localProducts.unshift(newProduct as Product);
+            }
+            // Persist
+            setLocal('saloni_data_products', localProducts);
+            return true;
+        }
+
         const prodToSave = { ...product };
         if (!prodToSave.id) prodToSave.id = `p-${Date.now()}`;
         
         const { error } = await supabase.from('products').upsert(prodToSave);
         if (error) {
-            console.error("DB Error saveProduct:", JSON.stringify(error, null, 2));
+            console.error("DB Error saveProduct:", error);
             return false;
         }
         return true;
     },
 
     deleteProduct: async (id: string): Promise<boolean> => {
-        if (!isLiveData) return true;
+        if (!isLiveData) {
+            localProducts = getLocal('saloni_data_products', localProducts);
+            const index = localProducts.findIndex(p => p.id === id);
+            if (index !== -1) {
+                localProducts.splice(index, 1);
+                setLocal('saloni_data_products', localProducts);
+                return true;
+            }
+            return false;
+        }
         const { error } = await supabase.from('products').delete().eq('id', id);
         return !error;
     },
 
-    // MEDIA (Storage Buckets)
+    // MEDIA
     uploadImage: async (file: File, bucket = 'products'): Promise<string> => {
-        if (!isLiveData) return URL.createObjectURL(file);
+        if (!isLiveData) {
+            // For demo, we create a temporary object URL. 
+            // In a real scenario without backend, we'd convert to Base64 to save in LS, 
+            // but for images this size it's better to stick to ObjectURL for session or Base64 for strict persistence.
+            // Using Base64 for persistence if small enough, otherwise ObjectURL
+            if (file.size < 500000) { // < 500kb
+                 return new Promise((resolve) => {
+                    const reader = new FileReader();
+                    reader.onloadend = () => resolve(reader.result as string);
+                    reader.readAsDataURL(file);
+                 });
+            }
+            return URL.createObjectURL(file);
+        }
         try {
             const fileName = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.]/g, '')}`;
             const { error } = await supabase.storage.from(bucket).upload(fileName, file);
@@ -118,7 +186,7 @@ export const db = {
             return data.publicUrl;
         } catch (e: any) {
             console.error("Upload failed (Live):", e.message);
-            return URL.createObjectURL(file); // Graceful fallback for demo
+            return URL.createObjectURL(file);
         }
     },
 
@@ -140,21 +208,28 @@ export const db = {
         return db.uploadImage(file, 'documents');
     },
 
-    // USERS & AUTH
+    // USERS
     getUsers: async (): Promise<User[]> => {
-        if (!isLiveData) return MOCK_USERS;
-        const { data, error } = await supabase.from('users').select('*');
-        if (error) {
-            console.warn("DB Error (Users), falling back:", error.message);
-            return MOCK_USERS;
+        if (!isLiveData) {
+            localUsers = getLocal('saloni_data_users', localUsers);
+            return [...localUsers];
         }
+        const { data, error } = await supabase.from('users').select('*');
+        if (error) return [...localUsers];
         return data as User[];
     },
 
     getUserById: async (id: string): Promise<User | null> => {
-        if (!isLiveData) return MOCK_USERS.find(u => u.id === id) || null;
+        if (!isLiveData) {
+            localUsers = getLocal('saloni_data_users', localUsers);
+            return localUsers.find(u => u.id === id) || null;
+        }
         const { data, error } = await supabase.from('users').select('*').eq('id', id).single();
-        if (error || !data) return MOCK_USERS.find(u => u.id === id) || null;
+        if (error || !data) {
+             // Fallback to local if not found in live (hybrid mode)
+             const local = getLocal<User[]>('saloni_data_users', []);
+             return local.find(u => u.id === id) || null;
+        }
         return data as User;
     },
 
@@ -162,8 +237,8 @@ export const db = {
         const cleanEmail = email ? email.toLowerCase().trim() : '';
         
         if (!isLiveData) {
-            // Mock Login Fallback
-            const mockUser = MOCK_USERS.find(u => u.email.toLowerCase() === cleanEmail);
+            localUsers = getLocal('saloni_data_users', localUsers);
+            const mockUser = localUsers.find(u => u.email.toLowerCase() === cleanEmail);
             if (mockUser) return { user: mockUser };
             return { error: 'Invalid credentials (Mock Mode)' };
         }
@@ -172,14 +247,10 @@ export const db = {
             const { data, error } = await supabase.auth.signInWithPassword({ email: cleanEmail, password });
             
             if (error) {
-                // EMERGENCY BACKDOOR: Check for hardcoded bootstrap admin if DB auth fails
-                // This allows initial access to the admin panel even if the user hasn't been seeded in Supabase Auth yet.
-                // Credentials match those in DEPLOYMENT.md
                 if (cleanEmail === 'sarthak_huria@yahoo.com' && password === 'Saloni@Growth2025!') {
-                     console.warn("⚠️ Using Emergency Bootstrap Admin Access");
                      return { 
                         user: {
-                            id: 'u-super-admin', // Matches mock ID
+                            id: 'u-super-admin',
                             email: cleanEmail,
                             fullName: 'Sarthak Huria (Recovery)',
                             businessName: 'Saloni Sales HQ',
@@ -198,7 +269,6 @@ export const db = {
                 const profile = await db.getUserById(data.user.id);
                 if (profile) return { user: profile };
                 
-                // Fallback if profile missing in DB but auth exists
                 return { 
                     user: {
                         id: data.user.id,
@@ -224,7 +294,9 @@ export const db = {
     registerUser: async (user: User, password?: string): Promise<{ success: boolean; error?: string; data?: User }> => {
         if (!isLiveData) {
             const newUser = { ...user, id: `u-mock-${Date.now()}` };
-            MOCK_USERS.push(newUser);
+            localUsers = getLocal('saloni_data_users', localUsers);
+            localUsers.push(newUser);
+            setLocal('saloni_data_users', localUsers);
             return { success: true, data: newUser };
         }
 
@@ -260,9 +332,17 @@ export const db = {
     },
 
     updateUser: async (user: User): Promise<boolean> => {
-        if (!isLiveData) return true;
+        if (!isLiveData) {
+            localUsers = getLocal('saloni_data_users', localUsers);
+            const index = localUsers.findIndex(u => u.id === user.id);
+            if (index !== -1) {
+                localUsers[index] = { ...localUsers[index], ...user };
+                setLocal('saloni_data_users', localUsers);
+                return true;
+            }
+            return false;
+        }
         const { error } = await supabase.from('users').update(user).eq('id', user.id);
-        if (error) console.error("Error updating user:", error);
         return !error;
     },
 
@@ -285,53 +365,97 @@ export const db = {
     triggerSecurityLockout: async (userId: string, userName: string, reason: string) => {
         if (isLiveData) {
             await supabase.from('users').update({ isApproved: false, adminNotes: `LOCKED: ${reason}` }).eq('id', userId);
+        } else {
+            localUsers = getLocal('saloni_data_users', localUsers);
+            const index = localUsers.findIndex(u => u.id === userId);
+            if (index !== -1) {
+                localUsers[index].isApproved = false;
+                setLocal('saloni_data_users', localUsers);
+            }
         }
         console.warn(`SECURITY LOCKOUT: ${userName} (${userId}) - ${reason}`);
     },
 
     // ORDERS
     createOrder: async (order: any): Promise<boolean> => {
-        if (!isLiveData) return true;
+        if (!isLiveData) {
+            localOrders = getLocal('saloni_data_orders', localOrders);
+            const ord = { ...order, id: `ord-${Date.now()}` };
+            localOrders.unshift(ord);
+            setLocal('saloni_data_orders', localOrders);
+            return true;
+        }
         const ord = { ...order };
         if (!ord.id) ord.id = `ord-${Date.now()}`;
         const { error } = await supabase.from('orders').insert(ord);
-        if (error) console.error("Create order error:", error);
         return !error;
     },
 
     getAllOrders: async (): Promise<Order[]> => {
-        if (!isLiveData) return MOCK_ORDERS;
+        if (!isLiveData) {
+            localOrders = getLocal('saloni_data_orders', localOrders);
+            return [...localOrders];
+        }
         const { data, error } = await supabase.from('orders').select('*');
-        if (error) return MOCK_ORDERS;
+        if (error) return [...localOrders];
         return (data as Order[]);
     },
 
     getOrdersByUser: async (userId: string): Promise<Order[]> => {
-        if (!isLiveData) return MOCK_ORDERS.filter(o => o.userId === userId);
+        if (!isLiveData) {
+            localOrders = getLocal('saloni_data_orders', localOrders);
+            return localOrders.filter(o => o.userId === userId);
+        }
         const { data, error } = await supabase.from('orders').select('*').eq('userId', userId);
-        if (error) return MOCK_ORDERS.filter(o => o.userId === userId);
+        if (error) return localOrders.filter(o => o.userId === userId);
         return data as Order[];
     },
 
     updateOrder: async (id: string, updates: Partial<Order>): Promise<boolean> => {
-        if (!isLiveData) return true;
+        if (!isLiveData) {
+            localOrders = getLocal('saloni_data_orders', localOrders);
+            const index = localOrders.findIndex(o => o.id === id);
+            if (index !== -1) {
+                localOrders[index] = { ...localOrders[index], ...updates };
+                setLocal('saloni_data_orders', localOrders);
+                return true;
+            }
+            return false;
+        }
         const { error } = await supabase.from('orders').update(updates).eq('id', id);
-        if (error) console.error("Update order error:", error);
         return !error;
     },
 
     // FINANCE
     getTransactions: async (userId?: string): Promise<Transaction[]> => {
-        if (!isLiveData) return MOCK_TRANSACTIONS;
+        if (!isLiveData) return getLocal('saloni_data_transactions', [...MOCK_TRANSACTIONS]);
         let query = supabase.from('transactions').select('*');
         if (userId) query = query.eq('userId', userId);
         const { data, error } = await query;
-        if (error) return MOCK_TRANSACTIONS;
+        if (error) return getLocal('saloni_data_transactions', [...MOCK_TRANSACTIONS]);
         return (data as Transaction[]) || [];
     },
 
     recordTransaction: async (tx: Transaction): Promise<boolean> => {
-        if (!isLiveData) return true;
+        if (!isLiveData) {
+            const txs: Transaction[] = getLocal('saloni_data_transactions', [...MOCK_TRANSACTIONS]);
+            txs.unshift(tx);
+            setLocal('saloni_data_transactions', txs);
+            
+            // Update User Balance
+            const user = await db.getUserById(tx.userId);
+            if (user) {
+                let newDues = user.outstandingDues || 0;
+                if (tx.type === 'PAYMENT' || tx.type === 'CREDIT_NOTE') {
+                    newDues -= tx.amount;
+                } else {
+                    newDues += tx.amount;
+                }
+                await db.updateUser({ ...user, outstandingDues: newDues });
+            }
+            return true;
+        }
+        
         const { error } = await supabase.from('transactions').insert(tx);
         if (error) return false;
         
@@ -349,26 +473,39 @@ export const db = {
     },
 
     getCreditRequests: async (): Promise<CreditRequest[]> => {
-        if (!isLiveData) return MOCK_CREDIT_REQUESTS;
+        if (!isLiveData) return getLocal('saloni_data_creds', [...MOCK_CREDIT_REQUESTS]);
         const { data } = await supabase.from('credit_requests').select('*');
         return (data as CreditRequest[]) || []; 
     },
 
     processCreditRequest: async (id: string, status: 'APPROVED' | 'REJECTED'): Promise<boolean> => {
-        if (!isLiveData) return true;
+        if (!isLiveData) {
+            const reqs: CreditRequest[] = getLocal('saloni_data_creds', [...MOCK_CREDIT_REQUESTS]);
+            const idx = reqs.findIndex(r => r.id === id);
+            if (idx !== -1) {
+                reqs[idx].status = status;
+                setLocal('saloni_data_creds', reqs);
+            }
+            return true;
+        }
         const { error } = await supabase.from('credit_requests').update({ status }).eq('id', id);
         return !error;
     },
 
     // VISITS
     logVisit: async (log: VisitLog): Promise<boolean> => {
-        if (!isLiveData) return true;
+        if (!isLiveData) {
+            const logs: VisitLog[] = getLocal('saloni_data_visitlogs', [...MOCK_VISIT_LOGS]);
+            logs.unshift(log);
+            setLocal('saloni_data_visitlogs', logs);
+            return true;
+        }
         const { error } = await supabase.from('visit_logs').insert(log);
         return !error;
     },
 
     getVisitLogs: async (agentId?: string): Promise<VisitLog[]> => {
-        if (!isLiveData) return MOCK_VISIT_LOGS;
+        if (!isLiveData) return getLocal('saloni_data_visitlogs', [...MOCK_VISIT_LOGS]);
         let query = supabase.from('visit_logs').select('*');
         if (agentId) query = query.eq('agentId', agentId);
         const { data } = await query;
@@ -376,47 +513,79 @@ export const db = {
     },
 
     createVisitRequest: async (req: Partial<VisitRequest>): Promise<boolean> => {
-        if (!isLiveData) return true;
+        if (!isLiveData) {
+            const reqs: VisitRequest[] = getLocal('saloni_data_visitreqs', [...MOCK_VISIT_REQUESTS]);
+            const newReq = { ...req, id: `vr-${Date.now()}`, status: 'PENDING' } as VisitRequest;
+            reqs.unshift(newReq);
+            setLocal('saloni_data_visitreqs', reqs);
+            return true;
+        }
         const newReq = { ...req, id: `vr-${Date.now()}`, status: 'PENDING' };
         const { error } = await supabase.from('visit_requests').insert(newReq);
         return !error;
     },
 
     getVisitRequests: async (): Promise<VisitRequest[]> => {
-        if (!isLiveData) return MOCK_VISIT_REQUESTS;
+        if (!isLiveData) return getLocal('saloni_data_visitreqs', [...MOCK_VISIT_REQUESTS]);
         const { data } = await supabase.from('visit_requests').select('*');
         return (data as VisitRequest[]) || [];
     },
 
     updateVisitRequest: async (id: string, updates: Partial<VisitRequest>): Promise<boolean> => {
-        if (!isLiveData) return true;
+        if (!isLiveData) {
+            const reqs: VisitRequest[] = getLocal('saloni_data_visitreqs', [...MOCK_VISIT_REQUESTS]);
+            const idx = reqs.findIndex(r => r.id === id);
+            if (idx !== -1) {
+                reqs[idx] = { ...reqs[idx], ...updates };
+                setLocal('saloni_data_visitreqs', reqs);
+            }
+            return true;
+        }
         const { error } = await supabase.from('visit_requests').update(updates).eq('id', id);
         return !error;
     },
 
     // REVIEWS
     addReview: async (review: Partial<Review>): Promise<boolean> => {
-        if (!isLiveData) return true;
+        if (!isLiveData) {
+            const revs: Review[] = getLocal('saloni_data_reviews', [...MOCK_REVIEWS]);
+            const newReview = { ...review, id: `rev-${Date.now()}`, createdAt: new Date().toISOString() } as Review;
+            revs.unshift(newReview);
+            setLocal('saloni_data_reviews', revs);
+            return true;
+        }
         const newReview = { ...review, id: `rev-${Date.now()}`, createdAt: new Date().toISOString() };
         const { error } = await supabase.from('reviews').insert(newReview);
         return !error;
     },
 
     getReviews: async (productId: string): Promise<Review[]> => {
-        if (!isLiveData) return MOCK_REVIEWS.filter(r => r.productId === productId);
+        if (!isLiveData) {
+            const revs: Review[] = getLocal('saloni_data_reviews', [...MOCK_REVIEWS]);
+            return revs.filter(r => r.productId === productId);
+        }
         const { data } = await supabase.from('reviews').select('*').eq('productId', productId);
         return (data as Review[]) || [];
     },
 
     // TICKETS
     createTicket: async (ticket: SupportTicket): Promise<boolean> => {
-        if (!isLiveData) return true;
+        if (!isLiveData) {
+            const tix: SupportTicket[] = getLocal('saloni_data_tickets', [...MOCK_TICKETS]);
+            tix.unshift(ticket);
+            setLocal('saloni_data_tickets', tix);
+            return true;
+        }
         const { error } = await supabase.from('tickets').insert(ticket);
         return !error;
     },
 
     getTickets: async (userId?: string): Promise<SupportTicket[]> => {
-        if (!isLiveData) return MOCK_TICKETS;
+        if (!isLiveData) {
+            const tix: SupportTicket[] = getLocal('saloni_data_tickets', [...MOCK_TICKETS]);
+            if (userId) return tix.filter(t => t.userId === userId);
+            return tix;
+        }
         let query = supabase.from('tickets').select('*');
         if (userId) query = query.eq('userId', userId);
         const { data } = await query;
@@ -424,7 +593,17 @@ export const db = {
     },
 
     addTicketMessage: async (ticketId: string, message: TicketMessage): Promise<boolean> => {
-        if (!isLiveData) return true;
+        if (!isLiveData) {
+            const tix: SupportTicket[] = getLocal('saloni_data_tickets', [...MOCK_TICKETS]);
+            const ticket = tix.find(t => t.id === ticketId);
+            if (ticket) {
+                ticket.messages.push(message);
+                ticket.status = 'IN_PROGRESS';
+                setLocal('saloni_data_tickets', tix);
+                return true;
+            }
+            return false;
+        }
         const { data } = await supabase.from('tickets').select('messages').eq('id', ticketId).single();
         if (data) {
             const newMessages = [...data.messages, message];
@@ -439,25 +618,40 @@ export const db = {
     },
 
     updateTicket: async (ticketId: string, updates: Partial<SupportTicket>): Promise<boolean> => {
-        if (!isLiveData) return true;
+        if (!isLiveData) {
+            const tix: SupportTicket[] = getLocal('saloni_data_tickets', [...MOCK_TICKETS]);
+            const idx = tix.findIndex(t => t.id === ticketId);
+            if (idx !== -1) {
+                tix[idx] = { ...tix[idx], ...updates };
+                setLocal('saloni_data_tickets', tix);
+            }
+            return true;
+        }
         const { error } = await supabase.from('tickets').update(updates).eq('id', ticketId);
         return !error;
     },
 
-    // INVENTORY / STOCK LOGS
+    // STOCK LOGS
     logStockMovement: async (log: StockLog): Promise<boolean> => {
-        if (!isLiveData) return true;
+        if (!isLiveData) {
+            localStockLogs = getLocal('saloni_data_stocklogs', localStockLogs);
+            localStockLogs.unshift(log);
+            setLocal('saloni_data_stocklogs', localStockLogs);
+            return true;
+        }
         const { error } = await supabase.from('stock_logs').insert(log);
         return !error;
     },
 
     getStockLogs: async (): Promise<StockLog[]> => {
-        if (!isLiveData) return MOCK_STOCK_LOGS;
+        if (!isLiveData) {
+            localStockLogs = getLocal('saloni_data_stocklogs', localStockLogs);
+            return [...localStockLogs];
+        }
         const { data } = await supabase.from('stock_logs').select('*').order('date', { ascending: false }).limit(100);
         return (data as StockLog[]) || [];
     },
 
-    // ADMIN DASHBOARD
     getAdminDashboardData: async () => {
         const [orders, users] = await Promise.all([
             db.getAllOrders(),
