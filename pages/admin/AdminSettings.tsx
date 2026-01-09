@@ -6,6 +6,7 @@ import { useToast } from '../../components/Toaster';
 import { GoogleGenAI } from "@google/genai";
 import { getGeminiKey } from '../../services/db';
 import { isLiveData, testConnection } from '../../services/supabaseClient';
+import { DEFAULT_RAZORPAY_KEY, DEFAULT_RAZORPAY_HANDLE } from '../../services/mockData';
 
 export const AdminSettings: React.FC = () => {
     const { toast } = useToast();
@@ -21,8 +22,8 @@ export const AdminSettings: React.FC = () => {
     // External Integration State
     const [gstKey, setGstKey] = useState(localStorage.getItem('SALONI_GST_API_KEY') || '');
     const [gstUrl, setGstUrl] = useState(localStorage.getItem('SALONI_GST_API_URL') || '');
-    const [razorpayKey, setRazorpayKey] = useState(localStorage.getItem('SALONI_RAZORPAY_KEY_ID') || 'rzp_live_S0uWvTrQbQVu8b');
-    const [razorpayHandle, setRazorpayHandle] = useState(localStorage.getItem('SALONI_RAZORPAY_HANDLE') || '@saloni1390');
+    const [razorpayKey, setRazorpayKey] = useState(localStorage.getItem('SALONI_RAZORPAY_KEY_ID') || DEFAULT_RAZORPAY_KEY);
+    const [razorpayHandle, setRazorpayHandle] = useState(localStorage.getItem('SALONI_RAZORPAY_HANDLE') || DEFAULT_RAZORPAY_HANDLE);
 
     // AI Studio State
     const [aiStudioAvailable, setAiStudioAvailable] = useState(false);
@@ -397,4 +398,3 @@ export const AdminSettings: React.FC = () => {
         </div>
     );
 };
-export default AdminSettings;

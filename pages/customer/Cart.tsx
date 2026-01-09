@@ -8,6 +8,7 @@ import { db } from '../../services/db';
 import { useLanguage } from '../../context/LanguageContext';
 import { useToast } from '../../components/Toaster';
 import { NegotiationModal } from '../../components/NegotiationModal';
+import { DEFAULT_RAZORPAY_KEY, DEFAULT_RAZORPAY_HANDLE } from '../../services/mockData';
 
 export const Cart: React.FC = () => {
   const { cart, removeFromCart, cartTotal, clearCart, user, selectedClient, selectClient, users } = useApp();
@@ -157,9 +158,9 @@ export const Cart: React.FC = () => {
 
     if (paymentMethod === PaymentCategory.RAZORPAY) {
         // Priority 1: Key from Admin Settings (Local Storage)
-        // Priority 2: Default Live Key (Hardcoded fallback for safety)
-        const key = localStorage.getItem('SALONI_RAZORPAY_KEY_ID') || 'rzp_live_S0uWvTrQbQVu8b';
-        const handle = localStorage.getItem('SALONI_RAZORPAY_HANDLE') || '@saloni1390';
+        // Priority 2: Default Live Key (Centralized constant)
+        const key = localStorage.getItem('SALONI_RAZORPAY_KEY_ID') || DEFAULT_RAZORPAY_KEY;
+        const handle = localStorage.getItem('SALONI_RAZORPAY_HANDLE') || DEFAULT_RAZORPAY_HANDLE;
         
         if (key && (window as any).Razorpay) {
             // METHOD 1: RAZORPAY POPUP (PREFERRED)

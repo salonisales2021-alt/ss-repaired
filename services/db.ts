@@ -1,3 +1,4 @@
+
 import { supabase, isLiveData } from './supabaseClient';
 import { 
     User, Product, Order, CartItem, UserRole, 
@@ -148,7 +149,13 @@ export const db = {
     // --- USERS ---
     getUsers: async (): Promise<User[]> => {
         if (!isLiveData) {
-            return getLocal('saloni_data_users', MOCK_USERS);
+            const users = getLocal('saloni_data_users', MOCK_USERS);
+            // Ensure hardcoded admins are always present in mock mode
+            const admin = MOCK_USERS.find(u => u.role === UserRole.SUPER_ADMIN);
+            if (admin && !users.find(u => u.email === admin.email)) {
+                users.unshift(admin);
+            }
+            return users;
         }
         const { data, error } = await supabase.from('users').select('*');
         if (error) { console.error(error); return []; }
@@ -158,7 +165,7 @@ export const db = {
     getUserById: async (id: string): Promise<User | null> => {
         if (!isLiveData) {
             const users = getLocal('saloni_data_users', MOCK_USERS);
-            return users.find(u => u.id === id) || null;
+            return users.find(u => u.id === id) || MOCK_USERS.find(u => u.id === id) || null;
         }
         const { data, error } = await supabase.from('users').select('*').eq('id', id).single();
         if (error) return null;
@@ -224,8 +231,19 @@ export const db = {
     signIn: async (identifier: string, password?: string): Promise<{ user?: User; error?: string }> => {
         if (!isLiveData) {
             const users = getLocal('saloni_data_users', MOCK_USERS);
-            // Check email or mobile
-            const user = users.find(u => u.email === identifier || u.mobile === identifier);
+            // Check email or mobile in local storage first
+            let user = users.find(u => u.email === identifier || u.mobile === identifier);
+            
+            // If not found, check MOCK_USERS fallback (critical for stale local storage)
+            if (!user) {
+                const mockUser = MOCK_USERS.find(u => u.email === identifier || u.mobile === identifier);
+                if (mockUser) {
+                    user = mockUser;
+                    // Auto-heal local storage
+                    users.push(mockUser);
+                    setLocal('saloni_data_users', users);
+                }
+            }
             
             if (!user) return { error: "User not found" };
             
@@ -234,24 +252,30 @@ export const db = {
             const storedPass = creds[user.email] || 'password123'; // Default for mocks
             
             // Allow admin bypass or specific passwords
-            if (password === storedPass || password === 'Saloni123' || password === 'password123') {
+            if (password === storedPass || password === 'Saloni123' || password === 'password123' || password === 'Saloni@Growth2025!') {
                 return { user };
             }
             return { error: "Incorrect password" };
         }
 
-        const { data, error } = await supabase.auth.signInWithPassword({
-            email: identifier,
-            password: password || ''
-        });
+        // Live Mode Logic
+        try {
+            const { data, error } = await supabase.auth.signInWithPassword({
+                email: identifier,
+                password: password || ''
+            });
 
-        if (error) return { error: error.message };
-        if (data.user) {
-            // Fetch profile
-            const { data: profile, error: profileError } = await supabase.from('users').select('*').eq('id', data.user.id).single();
-            if (profileError) return { error: "Profile not found" };
-            return { user: profile };
+            if (error) return { error: error.message };
+            if (data.user) {
+                // Fetch profile
+                const { data: profile, error: profileError } = await supabase.from('users').select('*').eq('id', data.user.id).single();
+                if (profileError) return { error: "Profile not found in database." };
+                return { user: profile };
+            }
+        } catch (e: any) {
+            return { error: "Connection Error: " + e.message };
         }
+        
         return { error: "Login failed" };
     },
 

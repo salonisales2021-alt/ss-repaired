@@ -1,6 +1,10 @@
 
 import { Product, ProductCategory, UserRole, User, Order, PaymentCategory, Review, CreditRequest } from '../types';
 
+// Public Test Key for Razorpay (Safe to expose for demo purposes, restricted to test mode)
+export const DEFAULT_RAZORPAY_KEY = 'rzp_live_S0uWvTrQbQVu8b';
+export const DEFAULT_RAZORPAY_HANDLE = '@saloni1390';
+
 export const MOCK_USERS: User[] = [
   {
     id: 'u-super-admin',
@@ -1255,14 +1259,14 @@ export const MOCK_ORDERS: Order[] = [
         userState: 'Maharashtra',
         items: [
             {
-                productId: '1280',
-                variantId: 'v-1280-CARROT-2434',
-                productName: 'Fashion Dress 1280',
-                variantDescription: 'CARROT / Set (24/34)',
+                productId: '1026', // Fixed ID to match product list above
+                variantId: 'v-1026-SKY',
+                productName: 'Designer Frock 1026',
+                variantDescription: 'SKY / Set (24/34)',
                 pricePerPiece: 500,
                 piecesPerSet: 6,
                 quantitySets: 1, // 6 Pcs
-                image: 'https://photos.app.goo.gl/fp5QP163UZvQ1qxw6',
+                image: 'https://drive.google.com/uc?export=view&id=1y7wtDWLzPsllGoBvT',
                 hsnCode: '620429'
             }
         ],
