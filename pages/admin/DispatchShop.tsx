@@ -60,8 +60,8 @@ export const DispatchShop: React.FC = () => {
                         </div>
                         
                         <div className="flex-1 mb-6">
-                            <h3 className="font-bold text-gray-900 text-lg leading-tight mb-1">{client.businessName}</h3>
-                            <p className="text-sm text-gray-500 font-medium">{client.fullName}</p>
+                            <h3 className="font-bold text-gray-900 text-lg leading-tight mb-1">{client.businessName || client.fullName}</h3>
+                            {/* Person name removed as per request */}
                             
                             <div className="mt-4 space-y-2">
                                 <div className="flex items-center gap-2 text-xs text-gray-600">
