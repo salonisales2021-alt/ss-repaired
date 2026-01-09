@@ -14,13 +14,33 @@ interface ExcelStockRow {
     sku: string;
     color: string;
     size: string;
-    stock: number;
+    stock: number; // In Sets (calculated)
+    piecesInput: number; // Raw pieces from sheet
+    price?: number;
+    photoUrl?: string;
     match?: {
         product: Product;
         variant: ProductVariant;
     };
     status?: 'MATCHED' | 'NOT_FOUND' | 'INVALID';
 }
+
+// Helper duplicated here for standalone logic within the component context if needed, 
+// though strictly it's the same logic as mockData.ts
+const getPiecesPerSet = (range: string) => {
+    const cleanRange = range ? range.toString().trim() : '';
+    if (cleanRange === '24/34') return 6;
+    if (cleanRange === '36/40') return 3;
+    if (cleanRange === '20/30') return 6;
+    if (cleanRange === '18/22') return 3;
+    if (cleanRange === '18/34') return 9;
+    if (cleanRange === '24/40') return 9;
+    if (cleanRange === '20/34') return 8;
+    if (cleanRange === '30/34') return 3;
+    if (cleanRange === '30/40') return 6;
+    if (cleanRange === '32/40') return 5;
+    return 6; // Default fallback
+};
 
 export const Inventory: React.FC = () => {
     const { products, refreshProducts, user } = useApp();
@@ -196,10 +216,11 @@ export const Inventory: React.FC = () => {
     // --- EXCEL IMPORT LOGIC ---
     const handleDownloadTemplate = () => {
         const wb = XLSX.utils.book_new();
+        // Updated Template Format as requested
         const wsData = [
-            ['SKU', 'Color', 'Size', 'New Stock'],
-            ['SS-ETH-001', 'Red', '24-34', '100'],
-            ['WD-001', 'Pink', '2-8Y', '50']
+            ['SKU', 'Color', 'SIZES', 'New Stock', 'Sales Price', 'url photo'],
+            ['1026', 'SKY', '24/34', '96', '500', 'https://drive.google.com/file/d/...'],
+            ['1027', 'ONION', '24/34', '26', '500', 'https://drive.google.com/file/d/...']
         ];
         const ws = XLSX.utils.aoa_to_sheet(wsData);
         XLSX.utils.book_append_sheet(wb, ws, "Stock Template");
@@ -219,12 +240,18 @@ export const Inventory: React.FC = () => {
             const ws = wb.Sheets[wsname];
             const data: any[] = XLSX.utils.sheet_to_json(ws);
 
-            // Map and Match Data
+            // Map and Match Data based on new headers
             const parsedData: ExcelStockRow[] = data.map((row: any) => {
                 const sku = String(row['SKU'] || '').trim();
                 const color = String(row['Color'] || '').trim();
-                const size = String(row['Size'] || '').trim();
-                const stock = Number(row['New Stock'] || 0);
+                const size = String(row['SIZES'] || row['Size'] || '').trim(); // Handle both keys
+                const pieces = Number(row['New Stock'] || 0); // Raw pieces
+                const price = row['Sales Price'] && row['Sales Price'] !== '-' ? Number(row['Sales Price']) : undefined;
+                const photoUrl = row['url photo'] && row['url photo'] !== '-' ? String(row['url photo']).trim() : undefined;
+
+                // Calculate Sets from Pieces
+                const piecesPerSet = getPiecesPerSet(size);
+                const stockSets = Math.floor(pieces / piecesPerSet);
 
                 // Find Matching Variant
                 const product = products.find(p => p.sku.toLowerCase() === sku.toLowerCase());
@@ -242,7 +269,10 @@ export const Inventory: React.FC = () => {
                 if (!sku || !color || !size) status = 'INVALID';
 
                 return {
-                    sku, color, size, stock,
+                    sku, color, size, 
+                    stock: stockSets,
+                    piecesInput: pieces,
+                    price, photoUrl,
                     status,
                     match: (product && variant) ? { product, variant } : undefined
                 };
@@ -273,6 +303,16 @@ export const Inventory: React.FC = () => {
                 }
 
                 const draft = productUpdates.get(product.id)!;
+                
+                // Update Product level fields if provided
+                if (row.price && row.price > 0) {
+                    draft.product.basePrice = row.price;
+                }
+                if (row.photoUrl && row.photoUrl.length > 5 && !draft.product.images.includes(row.photoUrl)) {
+                    // Prepend new image if valid URL
+                    draft.product.images = [row.photoUrl, ...draft.product.images];
+                }
+
                 draft.variants = draft.variants.map(v => {
                     if (v.id === variant.id) {
                         logsToPush.push({
@@ -283,11 +323,15 @@ export const Inventory: React.FC = () => {
                             variantDesc: `${v.color} / ${v.sizeRange}`,
                             quantity: row.stock,
                             type: 'ADJUSTMENT',
-                            reason: `Excel Import: ${excelFile?.name}`,
+                            reason: `Excel Import: ${excelFile?.name} (Converted ${row.piecesInput} pcs to ${row.stock} sets)`,
                             date: new Date().toISOString(),
                             performedBy: user?.fullName || 'Admin'
                         });
-                        return { ...v, stock: row.stock };
+                        
+                        // Update Variant fields
+                        const updatedV = { ...v, stock: row.stock };
+                        if (row.price) updatedV.pricePerPiece = row.price;
+                        return updatedV;
                     }
                     return v;
                 });
@@ -673,7 +717,7 @@ export const Inventory: React.FC = () => {
                         <div className="flex justify-between items-start mb-6">
                             <div>
                                 <h3 className="text-2xl font-black text-green-700 uppercase tracking-tight">Excel Stock Import</h3>
-                                <p className="text-xs text-gray-500 mt-1">Bulk update inventory via .xlsx file.</p>
+                                <p className="text-xs text-gray-500 mt-1">Bulk update inventory via .xlsx file. Auto-converts pieces to sets.</p>
                             </div>
                             <button onClick={() => setShowExcelModal(false)} className="text-gray-400 hover:text-black p-2">✕</button>
                         </div>
@@ -683,9 +727,9 @@ export const Inventory: React.FC = () => {
                                 <div className="space-y-6">
                                     <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
                                         <h4 className="font-bold text-sm mb-2 text-gray-800">1. Download Template</h4>
-                                        <p className="text-xs text-gray-500 mb-3">Use this template to ensure your data matches our system.</p>
+                                        <p className="text-xs text-gray-500 mb-3">Use the official Saloni Sales format to ensure correct mapping.</p>
                                         <Button variant="outline" size="sm" onClick={handleDownloadTemplate} className="w-full border-green-200 text-green-700 hover:bg-green-50">
-                                            ⬇ Download Excel Template
+                                            ⬇ Download Official Template
                                         </Button>
                                     </div>
 
@@ -711,7 +755,7 @@ export const Inventory: React.FC = () => {
                                                 <tr>
                                                     <th className="p-2">SKU</th>
                                                     <th className="p-2">Variant</th>
-                                                    <th className="p-2 text-right">New Stock</th>
+                                                    <th className="p-2 text-right">Pcs → Sets</th>
                                                     <th className="p-2 text-right">Status</th>
                                                 </tr>
                                             </thead>
@@ -720,7 +764,9 @@ export const Inventory: React.FC = () => {
                                                     <tr key={idx} className={row.status === 'MATCHED' ? 'bg-white' : 'bg-red-50'}>
                                                         <td className="p-2 font-mono">{row.sku}</td>
                                                         <td className="p-2">{row.color} / {row.size}</td>
-                                                        <td className="p-2 text-right font-bold">{row.stock}</td>
+                                                        <td className="p-2 text-right font-bold">
+                                                            {row.piecesInput} <span className="text-gray-400 font-normal">→</span> {row.stock}
+                                                        </td>
                                                         <td className="p-2 text-right">
                                                             {row.status === 'MATCHED' 
                                                                 ? <span className="text-green-600 font-bold">✔ OK</span>
