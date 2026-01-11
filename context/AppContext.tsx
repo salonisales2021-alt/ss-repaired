@@ -2,7 +2,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User, CartItem, ProductVariant, Product, Notification } from '../types';
 import { db } from '../services/db';
-import { supabase } from '../services/supabaseClient';
+import { supabase, isLiveData } from '../services/supabaseClient';
 
 interface AppContextType {
   user: User | null;
@@ -48,46 +48,60 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [isTutorialOpen, setTutorialOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
 
-  // Helper to load protected data
-  const loadProtectedData = async () => {
-      const prods = await db.getProducts();
-      setProducts(prods);
-      const u = await db.getUsers();
-      setUsers(u);
+  // Load Data only when user is present
+  const loadAppData = async () => {
+      try {
+          const [prods, allUsers] = await Promise.all([
+              db.getProducts(),
+              db.getUsers()
+          ]);
+          setProducts(prods);
+          setUsers(allUsers);
+      } catch (e) {
+          console.error("Data Load Error:", e);
+      }
   };
 
-  // Initial Data Load
+  // Auth Listener
   useEffect(() => {
-    const init = async () => {
-        try {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (session?.user) {
-                const profile = await db.getUserById(session.user.id);
-                if (profile) setUser(profile);
-                
-                // Fetch protected data only if authenticated to avoid RLS errors
-                await loadProtectedData();
+    // 1. MOCK MODE HANDLER
+    if (!isLiveData) {
+        const stored = localStorage.getItem('saloni_demo_user');
+        if (stored) {
+            try {
+                const parsed = JSON.parse(stored);
+                setUser(parsed);
+                // Load data immediately for mock user
+                loadAppData();
+            } catch (e) {
+                console.error("Failed to parse mock user", e);
+                localStorage.removeItem('saloni_demo_user');
             }
-        } catch (e) {
-            console.warn("App initialization warning (Offline or Auth Error):", e);
         }
-    };
-    init();
+        return;
+    }
 
-    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
-        if (event === 'SIGNED_IN' && session?.user) {
-            const profile = await db.getUserById(session.user.id);
-            setUser(profile);
-            await loadProtectedData();
-        } else if (event === 'SIGNED_OUT') {
-            setUser(null);
-            setProducts([]); // Clear protected data on logout
-            setUsers([]);
+    // 2. SUPABASE LIVE HANDLER
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+        if (session?.user) {
+            // Only fetch user details if we don't have them or if user ID changed
+            if (!user || user.id !== session.user.id) {
+                const profile = await db.getUserById(session.user.id);
+                setUser(profile);
+                // Load data after successful auth
+                await loadAppData(); 
+            }
+        } else {
+            if (user) {
+                setUser(null);
+                setProducts([]);
+                setUsers([]);
+            }
         }
     });
 
-    return () => authListener.subscription.unsubscribe();
-  }, []);
+    return () => subscription.unsubscribe();
+  }, []); // Run once on mount
 
   const refreshProducts = () => db.getProducts().then(setProducts);
 
@@ -95,15 +109,25 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const { user: authUser, error } = await db.signIn(identifier, password || '');
       if (error || !authUser) return { success: false, error: error || "Login failed" };
       
-      setUser(authUser);
+      if (!isLiveData) {
+          // In Mock Mode, we must manually update state because onAuthStateChange won't fire
+          setUser(authUser);
+          await loadAppData();
+      }
+      
+      // In Live Mode, state updates via the subscription listener
       return { success: true };
   };
 
   const logout = async () => {
       await db.signOut();
-      setUser(null);
-      setProducts([]);
-      setUsers([]);
+      if (!isLiveData) {
+          setUser(null);
+          setProducts([]);
+          setUsers([]);
+          // Force a small delay to ensure UI cleans up before navigation if needed
+          setTimeout(() => window.location.reload(), 100);
+      }
   };
 
   const registerUser = db.registerUser;
@@ -118,7 +142,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }
   };
 
-  // Cart Logic
   const addToCart = (product: Product, variant: ProductVariant, quantitySets: number) => {
       setCart(prev => [...prev, {
           productId: product.id,
@@ -142,7 +165,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       return { finalPrice: pricePerPiece, total };
   };
 
-  // Mock Notifications logic for now
   const unreadCount = notifications.filter(n => !n.isRead).length;
   const addNotification = (notification: Omit<Notification, 'id' | 'createdAt' | 'isRead'>) => {
       const newNotif: Notification = {
@@ -172,13 +194,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const triggerSecurityLockout = async (reason: string) => {
       if (user) {
-          await db.triggerSecurityLockout(user.id, user.fullName, reason);
+          await db.triggerSecurityLockout(user.id, reason);
           await logout();
           alert("Account Locked due to Security Policy Violation: " + reason);
       }
   };
 
-  // Biometric Placeholder
+  // Simplified Biometric logic (Placeholder)
   const isBiometricAvailable = false;
   const enableBiometricAuth = async () => false;
 

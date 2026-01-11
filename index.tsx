@@ -1,9 +1,8 @@
+
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 
-// Safely cleanup Service Workers to prevent stale caches
-// Wrapped in try-catch to avoid "invalid state" errors in some environments
 const cleanupServiceWorkers = async () => {
   if ('serviceWorker' in navigator) {
     try {
@@ -12,8 +11,7 @@ const cleanupServiceWorkers = async () => {
         registration.unregister().catch(() => {});
       }
     } catch (error) {
-      // Silently fail if SW is not accessible (e.g., sandboxed iframe)
-      // Warning suppressed to avoid console noise in restricted environments
+      // Ignore
     }
   }
 };
@@ -33,13 +31,8 @@ try {
     </React.StrictMode>
   );
 } catch (error) {
-  // Failsafe: If React crashes immediately, show it on screen
-  rootElement.innerHTML = `
-    <div style="padding: 20px; text-align: center; color: #721c24; background-color: #f8d7da; border: 1px solid #f5c6cb; margin: 20px;">
-      <h3>Application Failed to Start</h3>
-      <pre style="text-align: left; background: #fff; padding: 10px; overflow: auto;">${error instanceof Error ? error.message : JSON.stringify(error)}</pre>
-      <p>Please check console for more details.</p>
-    </div>
-  `;
+  // Safe Error Rendering (XSS prevention)
+  const safeMessage = error instanceof Error ? error.message : "Unknown error";
+  rootElement.innerText = `Application Error: ${safeMessage}`;
   console.error("Critical Mount Error:", error);
 }

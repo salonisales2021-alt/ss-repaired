@@ -1,11 +1,11 @@
 
-
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
-import { db } from '../../services/db';
+import { db, getGeminiKey, parseAIJson } from '../../services/db';
 import { Transaction, TransactionType, CreditRequest, UserRole } from '../../types';
 import { Button } from '../../components/Button';
 import { Input } from '../../components/Input';
+import { GoogleGenAI } from '@google/genai';
 
 export const Finance: React.FC = () => {
     const { users } = useApp();
@@ -22,6 +22,7 @@ export const Finance: React.FC = () => {
     const [reference, setReference] = useState('');
 
     const [requests, setRequests] = useState<CreditRequest[]>([]);
+    const [auditRunning, setAuditRunning] = useState(false);
 
     useEffect(() => {
         if (activeTab === 'LEDGER') loadTransactions();
@@ -75,6 +76,50 @@ export const Finance: React.FC = () => {
         loadRequests();
     };
 
+    const handleAiAudit = async () => {
+        setAuditRunning(true);
+        try {
+            const apiKey = getGeminiKey();
+            if (!apiKey) {
+                alert("API Key missing");
+                setAuditRunning(false);
+                return;
+            }
+            const ai = new GoogleGenAI({ apiKey });
+            
+            // Send transactions for pattern analysis
+            const context = transactions.slice(0, 50).map(t => ({
+                id: t.id,
+                date: t.date,
+                amount: t.amount,
+                type: t.type
+            }));
+
+            const response = await ai.models.generateContent({
+                model: 'gemini-3-flash-preview',
+                contents: `Analyze these B2B ledger entries for irregularities (e.g. erratic payments, unusual credit notes).
+                Data: ${JSON.stringify(context)}
+                Return ONLY a JSON list of anomalies: { "anomalies": [{"id": "...", "reason": "..."}] }`,
+                config: { responseMimeType: "application/json" }
+            });
+
+            const result = parseAIJson(response.text || '', { anomalies: [] } as any);
+            if (result.anomalies && result.anomalies.length > 0) {
+                // In production, save to ai_audit_logs
+                alert(`AI Audit Complete. Found ${result.anomalies.length} potential issues. Check system logs.`);
+                result.anomalies.forEach((a: any) => db.logAiAudit(a.id, 'TRANSACTION', 'MEDIUM', a.reason));
+            } else {
+                alert("AI Audit Complete. No obvious anomalies found in recent transactions.");
+            }
+
+        } catch (e) {
+            console.error(e);
+            alert("Audit failed.");
+        } finally {
+            setAuditRunning(false);
+        }
+    };
+
     const getUserName = (uid: string) => {
         const u = users.find(user => user.id === uid);
         return u ? (u.businessName || u.fullName) : 'Unknown Partner';
@@ -112,7 +157,12 @@ export const Finance: React.FC = () => {
                                 onChange={(e) => setSearchTerm(e.target.value)}
                             />
                         </div>
-                        <Button size="sm" onClick={() => setShowModal(true)}>+ Record Transaction</Button>
+                        <div className="flex gap-2">
+                            <Button size="sm" variant="outline" disabled={auditRunning} onClick={handleAiAudit}>
+                                {auditRunning ? 'Scanning...' : '🤖 AI Audit'}
+                            </Button>
+                            <Button size="sm" onClick={() => setShowModal(true)}>+ Record Transaction</Button>
+                        </div>
                     </div>
                     <div className="overflow-x-auto">
                         <table className="w-full text-sm text-left">
@@ -159,6 +209,7 @@ export const Finance: React.FC = () => {
                 </div>
             )}
 
+            {/* Approval Tab code remains unchanged... */}
             {activeTab === 'APPROVALS' && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-fade-in">
                     {requests.length === 0 ? (

@@ -1,5 +1,4 @@
 
-
 export enum UserRole {
   RETAILER = 'RETAILER',
   LOCAL_TRADER = 'LOCAL_TRADER',
@@ -114,6 +113,44 @@ export interface TransportDetails {
   eWayBillNo?: string;
 }
 
+// --- NEW COMMERCIAL TYPES ---
+
+export type RuleType = 'COMMISSION' | 'DISCOUNT' | 'MARKUP' | 'SHIPPING';
+export type CalculationType = 'PERCENTAGE' | 'FIXED_AMOUNT';
+
+export interface PricingRule {
+  id: string;
+  name: string;
+  rule_type: RuleType;
+  pipeline_definition: string;
+  target_role?: UserRole;
+  calculation_type: CalculationType;
+  value: number;
+  min_order_value: number;
+  priority: number;
+  is_locked: boolean;
+  effective_from: string;
+  effective_to?: string;
+}
+
+export interface OrderSnapshot {
+  base_total: number;
+  final_total: number;
+  applied_rules: {
+    rule_id: string;
+    rule_name: string;
+    amount: number;
+    type: RuleType;
+  }[];
+  settlement_mode: 'AUTO_LEDGER' | 'MANUAL_AUDIT';
+  pipeline: {
+    agent_id?: string;
+    gaddi_id?: string;
+    distributor_id?: string;
+  };
+  pricing_version: string;
+}
+
 export interface Order {
   id: string; // UUID
   userId: string; // UUID
@@ -142,6 +179,10 @@ export interface Order {
   gaddiAmount?: number;
   poNumber?: string;
   poImageUrl?: string;
+  
+  // NEW IMMUTABLE FIELDS
+  snapshotData?: OrderSnapshot;
+  commissionValue?: number;
 }
 
 export interface StockLog {

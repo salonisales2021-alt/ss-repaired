@@ -64,16 +64,42 @@ const BulkOnboarding = React.lazy(() => import('./pages/admin/BulkOnboarding').t
 const BulkClientOnboarding = React.lazy(() => import('./pages/admin/BulkClientOnboarding').then(m => ({ default: m.BulkClientOnboarding })));
 const SystemDiagnostics = React.lazy(() => import('./pages/admin/SystemDiagnostics').then(m => ({ default: m.SystemDiagnostics })));
 const DispatchShop = React.lazy(() => import('./pages/admin/DispatchShop').then(m => ({ default: m.DispatchShop })));
+const CommercialRules = React.lazy(() => import('./pages/admin/CommercialRules').then(m => ({ default: m.CommercialRules })));
 const AgentDashboard = React.lazy(() => import('./pages/agent/AgentDashboard').then(m => ({ default: m.AgentDashboard })));
 const GaddiDashboard = React.lazy(() => import('./pages/logistics/GaddiDashboard').then(m => ({ default: m.GaddiDashboard })));
 const DistributorDashboard = React.lazy(() => import('./pages/distributor/DistributorDashboard').then(m => ({ default: m.DistributorDashboard })));
 
-// Simple loading fallback
 const PageLoader = () => (
   <div className="flex flex-col items-center justify-center min-h-[60vh] w-full bg-gray-50">
     <div className="w-10 h-10 border-4 border-rani-600 rounded-full animate-spin border-t-transparent"></div>
   </div>
 );
+
+// Wrapper to access context for conditional rendering
+const GlobalFeatures = () => {
+    const { user } = useApp();
+    const isAdminOrAgent = user?.role === UserRole.ADMIN || user?.role === UserRole.SUPER_ADMIN || user?.role === UserRole.AGENT;
+    
+    return (
+        <>
+            <FloatingVisitButton />
+            {isAdminOrAgent && <FloatingAddClient />}
+            {/* Chatbot & Agent only for Customers or non-logged in users */}
+            {(!user || user.role === UserRole.RETAILER) && (
+                <div className="hidden md:block">
+                    <AIChatbot />
+                </div>
+            )}
+            {/* Lazy load Live Agent to save initial bandwidth */}
+            {(!user || user.role === UserRole.RETAILER) && (
+                <Suspense fallback={null}>
+                    <LiveSalesAgent />
+                </Suspense>
+            )}
+            <InstallPwaPrompt />
+        </>
+    );
+};
 
 const CustomerLayout = () => {
   return (
@@ -89,15 +115,8 @@ const CustomerLayout = () => {
         </Suspense>
       </main>
       <Footer />
-      <FloatingVisitButton />
-      <FloatingAddClient />
-      <div className="hidden md:block">
-          <AIChatbot />
-      </div>
-      <LiveSalesAgent />
-      <InstallPwaPrompt />
+      <GlobalFeatures />
       
-      {/* WhatsApp Floating Button */}
       <a 
         href="https://wa.me/919911076258" 
         target="_blank" 
@@ -132,7 +151,7 @@ function App() {
           <HashRouter>
             <DemoControls />
             <Routes>
-              {/* Public / Customer Routes */}
+              {/* Customer Routes */}
               <Route path="/" element={<CustomerLayout />}>
                 <Route index element={<CustomerHome />} />
                 <Route path="shop" element={<Shop />} />
@@ -156,39 +175,21 @@ function App() {
                 <Route path="contact" element={<Contact />} />
                 <Route path="franchise-enquiry" element={<EnquireFranchise />} />
                 
-                {/* Auth */}
                 <Route path="login" element={<Login />} />
                 <Route path="register" element={<Register />} />
                 <Route path="update-password" element={<UpdatePassword />} />
                 
-                {/* Partner Specific Dashboards */}
                 <Route path="agent/dashboard" element={<AgentDashboard />} />
                 <Route path="logistics/dashboard" element={<GaddiDashboard />} />
                 <Route path="distributor/dashboard" element={<DistributorDashboard />} />
                 
-                {/* Fallback */}
                 <Route path="*" element={<NotFound />} />
               </Route>
               
-              <Route path="/admin/login" element={
-                <Suspense fallback={<PageLoader />}>
-                  <Login />
-                </Suspense>
-              } />
-              
-              <Route path="/admin/invoice/:orderId" element={
-                <Suspense fallback={<PageLoader />}>
-                  <InvoiceGenerator />
-                </Suspense>
-              } />
+              <Route path="/admin/login" element={<Suspense fallback={<PageLoader />}><Login /></Suspense>} />
+              <Route path="/admin/invoice/:orderId" element={<Suspense fallback={<PageLoader />}><InvoiceGenerator /></Suspense>} />
 
-              <Route path="/admin" element={
-                <ProtectedAdminRoute>
-                  <Suspense fallback={<PageLoader />}>
-                    <AdminLayout />
-                  </Suspense>
-                </ProtectedAdminRoute>
-              }>
+              <Route path="/admin" element={<ProtectedAdminRoute><Suspense fallback={<PageLoader />}><AdminLayout /></Suspense></ProtectedAdminRoute>}>
                 <Route index element={<Navigate to="dashboard" replace />} />
                 <Route path="dashboard" element={<DashboardHome />} />
                 <Route path="orders" element={<OrderManager />} /> 
@@ -196,6 +197,7 @@ function App() {
                 <Route path="sales-desk" element={<DispatchShop />} />
                 <Route path="finance" element={<Finance />} />
                 <Route path="products" element={<ProductEditor />} /> 
+                <Route path="commercial-rules" element={<CommercialRules />} />
                 <Route path="bulk-onboarding" element={<BulkOnboarding />} />
                 <Route path="bulk-client-onboarding" element={<BulkClientOnboarding />} />
                 <Route path="catalog-maker" element={<CatalogMaker />} />

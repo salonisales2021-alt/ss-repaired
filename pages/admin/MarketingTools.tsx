@@ -2,7 +2,8 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { Button } from '../../components/Button';
-import { db } from '../../services/db';
+import { getGeminiKey } from '../../services/db';
+import { GoogleGenAI } from "@google/genai";
 
 export const MarketingTools: React.FC = () => {
     const { products, setHeroVideo } = useApp();
@@ -17,9 +18,22 @@ export const MarketingTools: React.FC = () => {
         if (!selectedProduct) return;
         setIsGenerating(true);
         try {
+            const apiKey = getGeminiKey();
+            if (!apiKey) {
+                alert("API Key is missing. Please configure it in Admin Settings.");
+                setIsGenerating(false);
+                return;
+            }
+
+            const ai = new GoogleGenAI({ apiKey });
             // Using backend AI service to generate content
             const prompt = `Generate a video prompt description for: ${selectedProduct.name}, Fabric: ${selectedProduct.fabric}. Context: ${promptModifier}`;
-            const description = await db.ai.generateContent(prompt);
+            
+            const response = await ai.models.generateContent({
+                model: 'gemini-3-flash-preview',
+                contents: prompt
+            });
+            const description = response.text;
             
             // In a real scenario, this would call a video generation API via Edge Function.
             // Since we can't spin up a GPU cluster here, we'll simulate the "response" logic 

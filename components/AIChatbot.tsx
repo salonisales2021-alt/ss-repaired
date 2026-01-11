@@ -1,7 +1,8 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
-import { db } from '../services/db';
+import { getGeminiKey } from '../services/db';
+import { GoogleGenAI } from "@google/genai";
 
 interface Message {
     role: 'user' | 'model';
@@ -32,11 +33,23 @@ export const AIChatbot: React.FC = () => {
         setIsTyping(true);
 
         try {
+            const apiKey = getGeminiKey();
+            if (!apiKey) {
+                // If API key is missing, fail gracefully
+                throw new Error("API Key missing");
+            }
+
+            const ai = new GoogleGenAI({ apiKey });
+
             // Build context from products
             const productContext = products.slice(0, 10).map(p => `${p.name}: ₹${p.basePrice}`).join(', ');
             const prompt = `User: ${userMsg}\nContext: You are a sales assistant. Available items: ${productContext}. Answer briefly.`;
             
-            const responseText = await db.ai.generateContent(prompt);
+            const response = await ai.models.generateContent({
+                model: 'gemini-3-flash-preview',
+                contents: prompt
+            });
+            const responseText = response.text || "I didn't get that.";
             
             setMessages(prev => [...prev, { role: 'model', text: responseText }]);
         } catch (error) {

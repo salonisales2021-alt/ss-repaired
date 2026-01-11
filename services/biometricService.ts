@@ -1,4 +1,3 @@
 
-export const isBiometricSupported = async (): Promise<boolean> => false;
-export const registerBiometric = async (): Promise<boolean> => false;
-export const verifyBiometric = async (): Promise<boolean> => false;
+// Deprecated. Biometric logic moved to AppContext.
+export {};
